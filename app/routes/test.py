@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from app.models.ai_analysis import AnalysisRequest, ChatResponse
-from app.services.ai_analysis import request_ai_analysis
+from app.services.ai_analysis_service import request_ai_analysis
 
 router = APIRouter()
 
