@@ -4,4 +4,4 @@ router = APIRouter()
 
 @router.get("/test")
 def test():
-    return "test"
+    return {"message": "test API"}
