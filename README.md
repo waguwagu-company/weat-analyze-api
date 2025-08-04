@@ -9,6 +9,10 @@ $ source venv/bin/activate   # (Windows: venv\Scripts\activate)
 # 필요한 패키지 설치
 $ pip install fastapi uvicorn
 
+# 필요한 패키지 모두 설치
+$ pip install -r requirements.txt
+
+
 # 서버 실행
 $ uvicorn main:app --reload
 ```
