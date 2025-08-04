@@ -1,4 +1,4 @@
-name: Deploy FastAPI
+name: Deploy weat-analyze-api
 
 on:
   push:
@@ -19,8 +19,8 @@ jobs:
 
       - name: Build and Push Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/weat-analyze-api:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/weat-analyze-api:latest
 
       - name: Deploy to Ncloud Server
         uses: appleboy/ssh-action@v0.1.10
@@ -29,7 +29,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
-            docker stop fastapi || true
-            docker rm fastapi || true
-            docker run -d --name fastapi -p 8000:8000 ${{ secrets.DOCKER_USERNAME }}/fastapi-app:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/weat-analyze-api:latest
+            docker stop weat-analyze-api || true
+            docker rm weat-analyze-api || true
+            docker run -d --name weat-analyze-api -p 8000:8000 ${{ secrets.DOCKER_USERNAME }}/weat-analyze-api:latest
