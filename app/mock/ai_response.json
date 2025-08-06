@@ -1,0 +1,124 @@
+{
+  "groupId": "{{request_groupId}}",
+  "analysisResult": {
+    "analysisResultDetailList": [
+      {
+        "place": {
+          "placeName": "조용한 북카페",
+          "placeRoadNameAddress": "서울시 마포구 양화로 45",
+          "placeImageUrlList": [
+            "https://example.com/images/place1.jpg"
+          ],
+          "placeImageData": []
+        },
+        "analysisBasisList": [
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "사람이 적어서 정말 조용했어요. 혼자 책 읽기 딱 좋았습니다."
+          },
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "카페 안이 굉장히 아늑하고 조용한 분위기였어요. 다시 가고 싶네요."
+          },
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "잔잔한 음악이 흘러나와서 집중하기 좋았어요. 공부하기에 최적의 장소."
+          }
+        ],
+        "analysisResultDetailContent": "조용하고 혼자 시간을 보내기 좋은 북카페로 사용자 리뷰를 통해 선정됨"
+      },
+      {
+        "place": {
+          "placeName": "AI추천 맛집",
+          "placeRoadNameAddress": "서울시 강남구 역삼로 120",
+          "placeImageUrlList": [
+            "https://example.com/images/place2.jpg"
+          ],
+          "placeImageData": []
+        },
+        "analysisBasisList": [
+          {
+            "analysisBasisType": "AI추천",
+            "analysisBasisContent": "사용자 호불호 조건 분석 결과, 선호 음식 카테고리와 분위기 조건을 모두 만족"
+          },
+          {
+            "analysisBasisType": "AI추천",
+            "analysisBasisContent": "비슷한 조건의 사용자 리뷰에서 긍정 평가 비율이 95% 이상인 장소로 추천됨"
+          }
+        ],
+        "analysisResultDetailContent": "AI 분석을 통해 다중 조건 충족 장소로 도출됨"
+      },
+      {
+        "place": {
+          "placeName": "뷰 맛집 카페",
+          "placeRoadNameAddress": "서울시 종로구 삼청로 33",
+          "placeImageUrlList": [
+            "https://example.com/images/place3.jpg"
+          ],
+          "placeImageData": []
+        },
+        "analysisBasisList": [
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "창밖으로 한눈에 들어오는 서울 뷰가 정말 인상 깊었어요."
+          },
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "사진 찍기에 딱 좋은 창가 자리! 인스타 감성 제대로입니다."
+          },
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "조용한 분위기와 멋진 전망 덕분에 오랜만에 힐링했네요."
+          }
+        ],
+        "analysisResultDetailContent": "리뷰를 통해 멋진 전망과 조용한 분위기를 갖춘 장소로 평가됨"
+      },
+      {
+        "place": {
+          "placeName": "AI추천 조용한 식당",
+          "placeRoadNameAddress": "서울시 성동구 서울숲2길 11",
+          "placeImageUrlList": [
+            "https://example.com/images/place4.jpg"
+          ],
+          "placeImageData": []
+        },
+        "analysisBasisList": [
+          {
+            "analysisBasisType": "AI추천",
+            "analysisBasisContent": "방문 시간대별 소음 분석 결과, 평균 소음도가 낮은 장소로 판단됨"
+          },
+          {
+            "analysisBasisType": "AI추천",
+            "analysisBasisContent": "사용자 리뷰 패턴 분석 결과, 혼밥 선호 조건에 최적화된 식당으로 추출됨"
+          }
+        ],
+        "analysisResultDetailContent": "AI가 조용하고 혼자 식사하기 좋은 장소로 추천한 결과"
+      },
+      {
+        "place": {
+          "placeName": "로스터리 카페",
+          "placeRoadNameAddress": "서울시 용산구 한강로 21",
+          "placeImageUrlList": [
+            "https://example.com/images/place5.jpg"
+          ],
+          "placeImageData": []
+        },
+        "analysisBasisList": [
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "원두 맛이 깊고 풍부했어요. 커피 좋아하는 사람들에게 강추!"
+          },
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "직접 로스팅한 커피라 그런지 향이 남다르네요."
+          },
+          {
+            "analysisBasisType": "리뷰",
+            "analysisBasisContent": "매장 내부가 깔끔하고 분위기도 좋아서 데이트 장소로도 괜찮아요."
+          }
+        ],
+        "analysisResultDetailContent": "커피 맛과 분위기에 대한 긍정 리뷰가 다수인 장소"
+      }
+    ]
+  }
+}
