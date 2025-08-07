@@ -6,3 +6,11 @@ class AnalysisRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    
+    
+class ValidationRequest(BaseModel):
+    input: str
+    
+class ValidationResponse(BaseModel):
+    isValid: bool
+    message: str
