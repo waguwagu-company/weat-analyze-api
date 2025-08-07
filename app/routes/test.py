@@ -11,7 +11,7 @@ from app.services.ai_analysis_service import request_ai_analysis
 
 router = APIRouter()
 
-@router.get("/test")
+@router.get("/ai/test")
 def test():
     return {"message": "test API"}
 
