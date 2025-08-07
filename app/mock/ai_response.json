@@ -6,10 +6,11 @@
         "place": {
           "placeName": "조용한 북카페",
           "placeRoadNameAddress": "서울시 마포구 양화로 45",
-          "placeImageUrlList": [
-            "https://example.com/images/place1.jpg"
-          ],
-          "placeImageData": []
+          "placeImageList": [
+            {
+              "placeImageUrl": "https://example.com/images/place4.jpg"
+            }
+          ]
         },
         "analysisBasisList": [
           {
@@ -31,10 +32,11 @@
         "place": {
           "placeName": "AI추천 맛집",
           "placeRoadNameAddress": "서울시 강남구 역삼로 120",
-          "placeImageUrlList": [
-            "https://example.com/images/place2.jpg"
-          ],
-          "placeImageData": []
+          "placeImageList": [
+            {
+              "placeImageUrl": "https://example.com/images/place4.jpg"
+            }
+          ]
         },
         "analysisBasisList": [
           {
@@ -52,10 +54,11 @@
         "place": {
           "placeName": "뷰 맛집 카페",
           "placeRoadNameAddress": "서울시 종로구 삼청로 33",
-          "placeImageUrlList": [
-            "https://example.com/images/place3.jpg"
-          ],
-          "placeImageData": []
+          "placeImageList": [
+            {
+              "placeImageUrl": "https://example.com/images/place4.jpg"
+            }
+          ]
         },
         "analysisBasisList": [
           {
@@ -77,10 +80,11 @@
         "place": {
           "placeName": "AI추천 조용한 식당",
           "placeRoadNameAddress": "서울시 성동구 서울숲2길 11",
-          "placeImageUrlList": [
-            "https://example.com/images/place4.jpg"
-          ],
-          "placeImageData": []
+          "placeImageList": [
+            {
+              "placeImageUrl": "https://example.com/images/place4.jpg"
+            }
+          ]
         },
         "analysisBasisList": [
           {
@@ -98,10 +102,11 @@
         "place": {
           "placeName": "로스터리 카페",
           "placeRoadNameAddress": "서울시 용산구 한강로 21",
-          "placeImageUrlList": [
-            "https://example.com/images/place5.jpg"
-          ],
-          "placeImageData": []
+          "placeImageList": [
+            {
+              "placeImageUrl": "https://example.com/images/place4.jpg"
+            }
+          ]
         },
         "analysisBasisList": [
           {

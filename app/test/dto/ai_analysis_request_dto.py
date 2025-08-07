@@ -9,8 +9,8 @@ class Category(BaseModel):
 
 class MemberSetting(BaseModel):
     memberId: int
-    xPosition: Optional[float]
-    yPosition: Optional[float]
+    xPosition: float
+    yPosition: float
     inputText: Optional[str]
     categoryList: List[Category] = Field(default_factory=list)
 
