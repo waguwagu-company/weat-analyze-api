@@ -1,8 +1,13 @@
+
 import json
 from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest
+from fastapi import APIRouter, HTTPException
+from app.models.ai_analysis_model import AnalysisRequest, ChatResponse
+from app.services.ai_analysis_service import request_ai_analysis
+
 
 router = APIRouter()
 
@@ -28,3 +33,13 @@ async def analyze(request_data: AIAnalysisRequest, request: Request):
 
     # JSON 파싱 및 반환
     return JSONResponse(content=json.loads(json_filled))
+
+
+@router.post("/clova-test", response_model=ChatResponse)
+def analyze(req: AnalysisRequest):
+    try:
+        result = request_ai_analysis(req.data)
+        return ChatResponse(reply=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
