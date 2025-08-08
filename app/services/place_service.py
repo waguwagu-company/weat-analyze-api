@@ -56,13 +56,19 @@ def call_search_nearby_places_api (
         longitude: float,
         radius: float = 500.0,
         max_results: int = 20,
-        test_json_path: str = "../mock/place_api_response.json"
+        test_json_path: Optional[str] = None
 ) -> PlacesResponse:
     mode = GOOGLE_PLACES_API_MODE
 
     if mode.lower() == "mock":
         print("* 테스트 모드(mock json 응답 사용)")
-        json_path = Path(test_json_path)
+
+        # 현재 파일(app/api/places_api.py 등) 기준 상위 디렉터리로부터 mock 경로 설정
+        base_dir = Path(__file__).resolve().parent.parent  # app/
+        json_path = Path(test_json_path) if test_json_path else base_dir / "mock" / "place_api_response.json"
+
+        print(f"[DEBUG] Mock JSON 경로: {json_path}")
+
         if not json_path.exists():
             raise FileNotFoundError(f"테스트 응답 파일이 존재하지 않습니다: {json_path}")
         with open(json_path, "r", encoding="utf-8") as f:
