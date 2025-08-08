@@ -219,6 +219,47 @@ async def calculate_place_score(place: Dict[str, Any], user_conditions: str) -> 
     # 평균 점수 반환
     return round(sum(r["score"] for r in scored_reviews) / len(scored_reviews), 2)
 
+"""
+모든 장소에 대해 AI 기반 점수 계산 후 상위 N개 반환
+"""
+async def evaluate_places_and_rank(
+    places: List[Dict[str, Any]], user_conditions: str, top_k: int = 5
+) -> List[Dict[str, Any]]:
+
+    scored_places = []
+
+    for idx, place in enumerate(places, start=1):
+        print(f"\n[장소 {idx}] {place.get('name', '이름 없음')} 평가 시작")
+        reviews = place.get("reviews", [])[:10]
+        top_reviews = []
+
+        for i, r in enumerate(reviews, start=1):
+            score = await score_review_with_ai(r["text"], user_conditions)
+            r["score"] = score
+            if score is not None:
+                top_reviews.append(r)
+                print(f"  [리뷰 {i}] \"{r['text'][:30]}...\" → 점수: {score}")
+            else:
+                print(f"  [리뷰 {i}] \"{r['text'][:30]}...\" → 점수 계산 실패 (기본값 사용)")
+
+        top_reviews_sorted = sorted(top_reviews, key=lambda r: r["score"], reverse=True)
+        place["topReviews"] = top_reviews_sorted[:2]
+
+        avg_score = round(
+            sum(r["score"] for r in top_reviews_sorted) / len(top_reviews_sorted), 2
+        ) if top_reviews_sorted else 0.0
+
+        place["score"] = avg_score
+        scored_places.append(place)
+
+        print(f"  → 종합 점수: {avg_score}")
+        print(f"  → Top 리뷰:")
+        for t_idx, t in enumerate(place["topReviews"], start=1):
+            print(f"    {t_idx}. {t['text'][:50]}... (점수: {t['score']})")
+
+    scored_places.sort(key=lambda p: p["score"], reverse=True)
+    return scored_places[:top_k]
+
 
 
 ####
