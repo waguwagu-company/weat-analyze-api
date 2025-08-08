@@ -185,6 +185,41 @@ async def score_review_with_ai(review_text: str, user_conditions: str) -> float:
     print(f"[AI 응답 파싱 실패] 원본 응답: {response} → 기본값 5.0 반환")
     return 5.0
 
+"""
+해당 장소의 리뷰들에 대해 AI 적합도 평가 → 평균 점수 반환
+추가로 topReviews 필드에 상위 리뷰 5개 저장
+"""
+async def calculate_place_score(place: Dict[str, Any], user_conditions: str) -> float:
+    reviews = place.get("reviews", [])[:10]  # 최대 10개 평가
+
+    if not reviews:
+        place["topReviews"] = []
+        return 0.0
+
+    scored_reviews = []
+    for r in reviews:
+        score = await score_review_with_ai(r["text"], user_conditions)
+        if score is not None:
+            scored_reviews.append({
+                "text": r["text"],
+                "score": score,
+                "author": r.get("author", None)
+            })
+
+    if not scored_reviews:
+        place["topReviews"] = []
+        return 0.0
+
+    # 점수 높은 순으로 정렬 후 상위 5개만 유지
+    top_reviews = sorted(scored_reviews, key=lambda x: x["score"], reverse=True)[:5]
+
+    # 장소에 topReviews 필드 추가
+    place["topReviews"] = top_reviews
+
+    # 평균 점수 반환
+    return round(sum(r["score"] for r in scored_reviews) / len(scored_reviews), 2)
+
+
 
 ####
 
