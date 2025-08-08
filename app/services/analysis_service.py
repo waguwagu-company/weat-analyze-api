@@ -53,3 +53,22 @@ def build_category_prompt(category_tags: list[dict]) -> str:
         + "3. 게/랍스터"
     )
     return prompt
+
+"""
+    여러 사용자의 비정형 입력값들을 기반으로
+    AI가 하나의 조건 요약문으로 정리할 수 있도록 요청 프롬프트 생성
+"""
+def build_input_text_prompt(input_texts: list[str]) -> str:
+
+    if not input_texts:
+        return "사용자들이 입력한 음식점에 대한 요구 조건이 없습니다."
+
+    bullet_points = "\n".join(f"- {text}" for text in input_texts)
+
+    # TODO: 프롬프트 템플릿은 분석 파이프라인 완성 후 수정 필요
+    prompt = (
+        "다음은 사용자들이 음식점에 대해 요청한 조건입니다:\n"
+        + bullet_points
+        + "\n\n위 내용을 바탕으로 모두의 의견을 반영하는 하나의 문장으로 요약해주세요."
+    )
+    return prompt
