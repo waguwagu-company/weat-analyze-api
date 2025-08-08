@@ -260,7 +260,32 @@ async def evaluate_places_and_rank(
     scored_places.sort(key=lambda p: p["score"], reverse=True)
     return scored_places[:top_k]
 
+async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Dict[str, Any]:
+    # 요약/분석
+    ai_summary = await summarize_group_preferences_with_ai(request)
+    user_condition = ai_summary["inputTextResponse"]
 
+    # 기준 위치
+    preprocessed = analyze_request_preprocessing(request)
+    base_x = preprocessed["basePosition"]["x"]
+    base_y = preprocessed["basePosition"]["y"]
+    group_id = preprocessed["groupId"]
+
+    # 장소 조회
+    places = await fetch_nearby_place_infos(base_x, base_y)
+
+    # 적합도 평가
+    top_places = await evaluate_places_and_rank(places, user_condition)
+
+    # return {
+    #     "userCondition": user_condition,
+    #     "topPlaces": top_places
+    # }
+
+    response = convert_to_response_format(group_id, top_places)
+    return response
+
+"""
 API 응답 형식에 맞춰 추천 장소(top_places) 리스트 변환
 """
 def convert_to_response_format(group_id: str, top_places: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -292,6 +317,9 @@ def convert_to_response_format(group_id: str, top_places: List[Dict[str, Any]]) 
     }
 
 ####
+
+
+
 
 
 import httpx
@@ -347,3 +375,4 @@ async def call_clova_ai(prompt: str, analysis_data: str = "") -> str:
     except Exception as e:
         log.exception("[CLOVA 예외]")
         return f"[CLOVA 예외] {str(e)}"
+
