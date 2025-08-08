@@ -125,6 +125,20 @@ def call_place_details_api(
     return response.json()
 
 
+def call_place_photo_api (photo_reference: str, maxwidth: int = 400) -> Optional[bytes]:
+    url = "https://maps.googleapis.com/maps/api/place/photo"
+    params = {
+        "maxwidth": str(maxwidth),
+        "photo_reference": photo_reference,
+        "key": GOOGLE_PLACES_API_KEY
+    }
+
+    with httpx.Client(follow_redirects=True) as client:
+        response = client.get(url, params=params)
+        response.raise_for_status()
+        return response.content
+
+
 
 def place_api_call_test():
     try:
@@ -144,6 +158,8 @@ def place_api_call_test():
 
     except Exception as e:
         print(f"에러 발생: {e}")
+
+
 
 if __name__ == "__main__":
     place_api_call_test()
