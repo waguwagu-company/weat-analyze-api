@@ -3,6 +3,56 @@ from typing import Dict, List, Tuple
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
 
 """
+    분석 요청을 전처리하여 멤버별 설정정보를 하나의 데이터 재구성
+    - 사용자 유형(개인/단체)
+    - 중심 위치 계산
+    - 선호/비선호 카테고리 데이터
+    - 사용자 입력 문장 데이터
+"""
+def analyze_request_preprocessing(request: AIAnalysisRequest) -> Dict:
+    members = request.memberSettingList
+    group_id = request.groupId
+
+    print(f">> [분석 시작] groupId = {group_id}")
+    print(f">> 총 멤버 수: {len(members)}")
+
+    base_x, base_y, is_group = calculate_base_position(members)
+    print(f">> 분석 유형: {'단체' if is_group else '개인'}")
+
+    # 카테고리 태그 취합
+    all_category_tags = []
+    for m in members:
+        for c in m.categoryList:
+            if c.categoryTagName:
+                all_category_tags.append({
+                    "tag": c.categoryTagName,
+                    "isPreferred": c.isPreferred
+                })
+
+    print(f">> 총 카테고리 태그 수: {len(all_category_tags)}")
+    preferred = [t for t in all_category_tags if t["isPreferred"]]
+    non_preferred = [t for t in all_category_tags if t["isPreferred"] is False]
+    print(f"  - 선호 태그 수: {len(preferred)}")
+    print(f"  - 비선호 태그 수: {len(non_preferred)}")
+
+    # 비정형 입력 취합
+    all_input_texts = [m.inputText for m in members if m.inputText]
+    print(f">> 비정형 문장 개수: {len(all_input_texts)}")
+
+    return {
+        "groupId": group_id,
+        "isGroup": is_group,
+        "memberCount": len(members),
+        "basePosition": {
+            "x": base_x,
+            "y": base_y
+        },
+        "categoryPreference": all_category_tags,
+        "inputTextSummarySource": all_input_texts
+    }
+
+
+"""
 멤버들의 위치 설정을 기반으로 기준 위치(x, y)를 계산
 개인으로 분석하는 경우 설정한 위치를 그대로 사용하고, 그룹일 경우 평균값을 계산
 
