@@ -45,8 +45,10 @@ class Place(BaseModel):
 class PlacesResponse(BaseModel):
     places: Optional[List[Place]] = None
 
-
-def search_nearby_places_sync(
+"""
+ 특정 좌표/주소 기준 인근 장소 조회
+"""
+def call_search_nearby_places_api (
         latitude: float,
         longitude: float,
         radius: float = 500.0,
@@ -99,6 +101,29 @@ def search_nearby_places_sync(
         response.raise_for_status()
 
     return PlacesResponse(**response.json())
+
+
+"""
+특정 장소 세부정보 검색
+"""
+def call_place_details_api(
+    place_id: str,
+    fields: str = "name,photos",
+    language: str = "ko"
+) -> dict:
+    url = "https://maps.googleapis.com/maps/api/place/details/json"
+    params = {
+        "place_id": place_id,
+        "fields": fields,
+        "language": language,
+        "key": GOOGLE_PLACES_API_KEY
+    }
+
+    response = httpx.get(url, params=params)
+    response.raise_for_status()
+
+    return response.json()
+
 
 
 def place_api_call_test():
