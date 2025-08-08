@@ -22,8 +22,7 @@ async def validate_input(request: ValidationRequest):
         )
 
     try:
-        parsed = ValidationResponse(**ai_result.data)
-        return SuccessResponse(data=parsed.dict())
+        return ValidationResponse(**ai_result)
     except Exception as e:
         logging.exception("AI 응답 파싱 실패")
         error = ErrorCode.AI_INVALID_JSON

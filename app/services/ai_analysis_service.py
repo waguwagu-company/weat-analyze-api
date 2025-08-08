@@ -2,6 +2,7 @@ import requests, logging, httpx, json, re
 from app.core.config import CLOVA_API_KEY, CLOVA_API_URL
 from app.common.responses import ErrorResponse, SuccessResponse
 from app.common.error_codes import ErrorCode
+from typing import Optional, Tuple
 
 
 async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
@@ -52,20 +53,12 @@ async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
 
 
             # content 안에서 JSON만 추출 
-            match = re.search(r'\{[\s\S]*\}', content)
-            if not match:
+            parsed_json = extract_json_from_ai_response(content)
+            if not parsed_json:
                 error = ErrorCode.INVALID_JSON_FORMAT
                 return ErrorResponse(code=error.code, message=error.message)
 
-            extracted_json_str = match.group(0)
-            try:
-                parsed = json.loads(extracted_json_str)
-                # 성공 응답
-                return SuccessResponse(data=parsed)
-            except json.JSONDecodeError as e:
-                logging.error(f"JSON 파싱 실패: {e}")
-                error = ErrorCode.INVALID_JSON_FORMAT
-                return ErrorResponse(code=error.code, message=error.message)
+            return parsed_json
 
     except httpx.HTTPStatusError as e:
         logging.error(f"CLOVA API HTTP 오류: {e.response.status_code} - {e.response.text}")
@@ -77,3 +70,30 @@ async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
         error = ErrorCode.UNKNOWN_ERROR
         return ErrorResponse(code=error.code, message=error.message)
 
+
+
+
+def extract_json_from_ai_response(content: str) -> Optional[dict]:
+    # 순수 JSON인 경우
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        pass
+    
+    # 마크다운 형식 제거
+    markdown_match = re.search(r"```(?:json)?\n([\s\S]+?)\n```", content)
+    if markdown_match:
+        try:
+            return json.loads(markdown_match.group(1))
+        except json.JSONDecodeError:
+            pass
+        
+    # 중괄호 부분만 추출
+    bracket_match = re.search(r"\{[\s\S]*\}", content)
+    if bracket_match:
+        try:
+            return json.loads(bracket_match.group(0))
+        except json.JSONDecodeError:
+            pass
+    
+    return None
