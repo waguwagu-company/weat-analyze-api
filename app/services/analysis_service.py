@@ -261,6 +261,35 @@ async def evaluate_places_and_rank(
     return scored_places[:top_k]
 
 
+API 응답 형식에 맞춰 추천 장소(top_places) 리스트 변환
+"""
+def convert_to_response_format(group_id: str, top_places: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return {
+        "groupId": group_id,
+        "analysisResult": {
+            "analysisResultDetailList": [
+                {
+                    "place": {
+                        "placeName": place.get("name"),
+                        "placeRoadNameAddress": place.get("address"),
+                        "placeImageList": []  # 현재 이미지 사용하지 않음
+                    },
+                    "analysisResultDetailContent": (
+                        place.get("topReviews", [{}])[0].get("text", "")
+                        if place.get("topReviews") else ""
+                    ),
+                    "analysisBasisList": [
+                        {
+                            "analysisBasisType": "리뷰",
+                            "analysisBasisContent": review.get("text")
+                        }
+                        for review in place.get("topReviews", [])[:2]
+                    ]
+                }
+                for place in top_places
+            ]
+        }
+    }
 
 ####
 
