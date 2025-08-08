@@ -50,7 +50,7 @@ async def analyze(request_data: AIAnalysisRequest, request: Request):
     return JSONResponse(content=json.loads(json_filled))
 
 
-@router.post("/api/analyze")
+@router.post("/api/analyze/temp2")
 async def analyze(request_data: AIAnalysisRequest, request: Request):
     # 요청 로깅
     print("\n--- [Received AI Analysis Request] ---")
@@ -84,6 +84,32 @@ async def analyze(request_data: AIAnalysisRequest, request: Request):
     }
 
 
+@router.post("/api/analyze")
+async def run_analysis(request_data: AIAnalysisRequest, request: Request):
+    # 요청 로깅
+    print("\n--- [Received AI Analysis Request for CLOVA RUN] ---")
+    print(await request.body())
+    print("---------------------------------------\n")
+
+    print_pretty_request(request_data)
+
+    try:
+        # 전체 파이프라인 실행
+        result = await summarize_group_preferences_with_ai(request_data)
+
+        # 콘솔 출력 (결과 확인용)
+        print("\n[Clova 응답 결과]")
+        print(">> 카테고리 요약 응답:")
+        print(result["categoryResponse"])
+        print("\n>> 비정형 요약 응답:")
+        print(result["inputTextResponse"])
+        print("-----------------------------\n")
+
+        return JSONResponse(content=result)
+
+    except Exception as e:
+        print("[ERROR] Clova AI 호출 중 예외 발생:", str(e))
+        raise HTTPException(status_code=500, detail="AI 분석 중 오류가 발생했습니다.")
 
 
 

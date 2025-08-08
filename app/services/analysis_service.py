@@ -51,6 +51,29 @@ def analyze_request_preprocessing(request: AIAnalysisRequest) -> Dict:
         "inputTextSummarySource": all_input_texts
     }
 
+"""
+AI를 활용하여 분석설정 취합 및 요약
+"""
+async def summarize_group_preferences_with_ai(request: AIAnalysisRequest) -> Dict[str, str]:
+
+    # 요청 전처리
+    preprocessed = analyze_request_preprocessing(request)
+    category_tags = preprocessed["categoryPreference"]
+    input_texts = preprocessed["inputTextSummarySource"]
+
+    # 프롬프트 생성
+    category_prompt = build_category_prompt(category_tags)
+    input_text_prompt = build_input_text_prompt(input_texts)
+
+    # Clova에 요청
+    category_response_text = await call_clova_ai(prompt=category_prompt, analysis_data="")
+    input_text_response_text = await call_clova_ai(prompt=input_text_prompt, analysis_data="")
+
+    return {
+        "categoryResponse": category_response_text,
+        "inputTextResponse": input_text_response_text
+    }
+
 
 """
 멤버들의 위치 설정을 기반으로 기준 위치(x, y)를 계산
@@ -122,3 +145,62 @@ def build_input_text_prompt(input_texts: list[str]) -> str:
         + "\n\n위 내용을 바탕으로 모두의 의견을 반영하는 하나의 문장으로 요약해주세요."
     )
     return prompt
+
+
+
+####
+
+
+import httpx
+import logging
+from app.core.config import CLOVA_API_KEY, CLOVA_API_URL
+
+log = logging.getLogger(__name__)
+
+async def call_clova_ai(prompt: str, analysis_data: str = "") -> str:
+    """
+    CLOVA Chat Completion API 호출
+    응답을 문자열로 받아서 처리
+    """
+    headers = {
+        "Content-Type": "application/json; charset=utf-8",
+        "Authorization": f"Bearer {CLOVA_API_KEY}"
+    }
+
+    body = {
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt + "\n\n[사용자 데이터]:\n" + analysis_data
+            }
+        ],
+        "topP": 0.8,
+        "temperature": 0.7,
+        "maxTokens": 1000,
+        "repeatPenalty": 1.1,
+        "stopBefore": [],
+        "includeAiFilters": False
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            log.info(f"[CLOVA 요청 바디]: {body}")
+            response = await client.post(CLOVA_API_URL, headers=headers, json=body)
+            log.info(f"[CLOVA 응답 바디]: {response.text}")
+
+            response.raise_for_status()
+            data = response.json()
+
+            content = data.get("result", {}).get("message", {}).get("content", "")
+            if not content:
+                return "[CLOVA 응답 없음] result.message.content 비어있음"
+
+            return content.strip()
+
+    except httpx.HTTPStatusError as e:
+        log.error(f"[CLOVA HTTP 오류] {e.response.status_code} - {e.response.text}")
+        return f"[CLOVA 오류] 상태 코드 {e.response.status_code} - {e.response.text}"
+
+    except Exception as e:
+        log.exception("[CLOVA 예외]")
+        return f"[CLOVA 예외] {str(e)}"
