@@ -4,9 +4,11 @@ from app.common.responses import ErrorResponse, SuccessResponse
 from app.common.error_codes import ErrorCode
 from typing import Optional, Tuple
 
+log = logging.getLogger(__name__)
+
 
 async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
-    print(f"CLOVA_API_URL: {CLOVA_API_URL}")
+    log.info(f"CLOVA_API_URL: {CLOVA_API_URL}")
     
     headers = {
         "Content-Type": "application/json; charset=utf-8",
@@ -32,16 +34,16 @@ async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            print(f"요청 바디: {json.dumps(body, indent=2, ensure_ascii=False)}")
+            log.info(f"요청 바디: {json.dumps(body, indent=2, ensure_ascii=False)}")
             response = await client.post(CLOVA_API_URL, headers=headers, json=body)
             
-            print(f"응답 바디: {response.text}")
+            log.info(f"응답 바디: {response.text}")
 
             response.raise_for_status()
             data = response.json()
             
             if data.get("status", {}).get("code") != "20000":
-                print(f"CLOVA 응답 상태 오류: {data.get('status')}")
+                log.info(f"CLOVA 응답 상태 오류: {data.get('status')}")
                 error = ErrorCode.AI_INTERNAL_ERROR
                 return ErrorResponse(code=error.code, message=error.message)
 
@@ -61,13 +63,13 @@ async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
             return parsed_json
 
     except httpx.HTTPStatusError as e:
-        logging.error(f"CLOVA API HTTP 오류: {e.response.status_code} - {e.response.text}")
+        log.error(f"CLOVA API HTTP 오류: {e.response.status_code} - {e.response.text}")
         error = ErrorCode.AI_INTERNAL_ERROR
         return ErrorResponse(code=error.code, message=error.message)
 
     except Exception as e:
-        logging.exception("예기치 못한 오류")
-        error = ErrorCode.UNKNOWN_ERROR
+        log.exception("예기치 못한 오류")
+        error = ErrorCode.SERVER_ERROR
         return ErrorResponse(code=error.code, message=error.message)
 
 

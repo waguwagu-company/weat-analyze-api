@@ -7,26 +7,26 @@ from app.common.responses import SuccessResponse, ErrorResponse
 from app.common.error_codes import ErrorCode
 
 router = APIRouter()
-
+log = logging.getLogger(__name__)
 
 @router.post("/api/validate", response_model=ValidationResponse)
 async def validate_input(request: ValidationRequest):
-    
-    ai_result = await request_ai_analysis(SYSTEM_PROMPT_VALIDATION, request.input)
-        
-    # 실패 시 spring으로 500 응답
-    if isinstance(ai_result, ErrorResponse):
-        raise HTTPException(
-            status_code=500,
-            detail=ai_result.dict()
-        )
-
     try:
+        ai_result = await request_ai_analysis(SYSTEM_PROMPT_VALIDATION, request.userInput)
+            
+        # 실패 시 spring으로 500 응답
+        if isinstance(ai_result, ErrorResponse):
+            raise HTTPException(
+                status_code=500,
+                detail=ai_result.model_dump()
+            )
+        
         return ValidationResponse(**ai_result)
+    
     except Exception as e:
-        logging.exception("AI 응답 파싱 실패")
-        error = ErrorCode.AI_INVALID_JSON
+        log.exception("AI 응답 실패")
+        error = ErrorCode.AI_RESPONSE_FAIL
         raise HTTPException(
             status_code=500,
-            detail=ErrorResponse(code=error.code, message=error.message).dict()
+            detail=ErrorResponse(code=error.code, message=error.message).model_dump()
         )
