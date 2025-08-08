@@ -3,8 +3,10 @@ from app.core.config import CLOVA_API_KEY, CLOVA_API_URL
 
 
 async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
+    print(f"CLOVA_API_URL: {CLOVA_API_URL}")
+    
     headers = {
-        "Content-Type": "application/json",
+        "Content-Type": "application/json; charset=utf-8",
         "Authorization": f"Bearer {CLOVA_API_KEY}"
     }
     
