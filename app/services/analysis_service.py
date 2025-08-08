@@ -26,3 +26,30 @@ def calculate_base_position(members: List[MemberSetting]) -> Tuple[float, float,
         print(f">> 개인 위치 사용: x = {base_x}, y = {base_y}")
 
     return base_x, base_y, is_group
+
+
+"""
+단체 사용자의 카테고리태그 데이터를 기반으로, 
+AI에게 카테고리태그 취합 요청을 위한 프롬프트 생성
+"""
+def build_category_prompt(category_tags: list[dict]) -> str:
+    if not category_tags:
+        return "사용자들이 선택한 선호/비선호 음식 태그가 없습니다."
+
+    lines = []
+    for tag in category_tags:
+        status = "선호" if tag["isPreferred"] else "비선호"
+        lines.append(f"- {tag['tag']} ({status})")
+
+    # TODO: 프롬프트 템플릿은 분석 파이프라인 완성 후 수정 필요
+    prompt = (
+        "다음은 사용자들이 입력한 음식 선호 태그입니다:\n"
+        + "\n".join(lines)
+        + "\n\n위 데이터를 바탕으로, 가능한 한 모두의 취향을 존중할 수 있는 음식 태그를 선정해 주세요.\n"
+        + "너무 많은 태그를 포함하지 말고, 공통된 선호를 고려하여 **3개 정도**만 추려 주세요.\n"
+        + "응답에는 \"어떤 설명도 포함하지 말고\", 아래와 같은 형식으로 숫자와 태그명만 출력해 주세요:\n\n"
+        + "1. 뷔페\n"
+        + "2. 돼지고기\n"
+        + "3. 게/랍스터"
+    )
+    return prompt
