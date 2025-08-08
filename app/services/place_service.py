@@ -5,6 +5,8 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.core.config import GOOGLE_PLACES_API_KEY, GOOGLE_PLACES_API_MODE
 from app.models.search_nearby_places_api_response import PlacesResponse
+from app.models.place_detail_api_response import PlaceDetailResponse
+
 """
  특정 좌표/주소 기준 인근 장소 조회
 """
@@ -70,7 +72,7 @@ def call_place_details_api(
     place_id: str,
     fields: str = "name,photos",
     language: str = "ko"
-) -> dict:
+) -> PlaceDetailResponse:
     url = "https://maps.googleapis.com/maps/api/place/details/json"
     params = {
         "place_id": place_id,
@@ -82,8 +84,7 @@ def call_place_details_api(
     response = httpx.get(url, params=params)
     response.raise_for_status()
 
-    return response.json()
-
+    return PlaceDetailResponse(**response.json())
 
 def call_place_photo_api (photo_reference: str, maxwidth: int = 400) -> Optional[bytes]:
     url = "https://maps.googleapis.com/maps/api/place/photo"
@@ -108,6 +109,10 @@ def place_api_call_test():
         result = call_search_nearby_places_api(latitude, longitude)
 
         for place in result.places:
+
+            place_detail = call_place_details_api(place.id)
+        
+
             print(f"[{place.displayName.text}]")
             print(f"{place.formattedAddress}")
             print(f"  - 평점 수: {place.userRatingCount}, 가격대: {place.priceLevel}")
@@ -115,6 +120,11 @@ def place_api_call_test():
                 for review in place.reviews[:10]:
                     print(f"  - 리뷰️[별점:{review.rating}]: {review.text.text[:50]}...")
             print()
+
+            print(f"place_detail.result.photos 개수 => {len(place_detail.result.photos)}")
+
+            for idx, photo in enumerate(place_detail.result.photos):
+                print(f"[{idx+1}] photo_reference: {photo.photo_reference}")
 
     except Exception as e:
         print(f"에러 발생: {e}")
