@@ -1,7 +1,7 @@
 from statistics import mean
 from typing import Dict, List, Tuple
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
-
+from app.services.ai_analysis_service import request_ai_analysis
 """
     분석 요청을 전처리하여 멤버별 설정정보를 하나의 데이터 재구성
     - 사용자 유형(개인/단체)
