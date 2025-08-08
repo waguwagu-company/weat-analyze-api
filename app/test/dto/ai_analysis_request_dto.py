@@ -1,20 +1,20 @@
-from typing import List, Optional
+from typing import List, Optional, Annotated
 from pydantic import BaseModel, Field
 
-
-class Category(BaseModel):
-    categoryId: int
-    categoryName: str
-
+class CategorySetting(BaseModel):
+    categoryId: Optional[int] = None
+    categoryName: Optional[str] = None
+    categoryTagId: Optional[int] = None
+    categoryTagName: Optional[str] = None
+    isPreferred: Optional[bool] = None
 
 class MemberSetting(BaseModel):
     memberId: int
     xPosition: float
     yPosition: float
+    categoryList: Annotated[List[CategorySetting], Field(default_factory=list)]
     inputText: Optional[str]
-    categoryList: List[Category] = Field(default_factory=list)
-
 
 class AIAnalysisRequest(BaseModel):
     groupId: str
-    memberSettingList: List[MemberSetting] = Field(default_factory=list)
+    memberSettingList: Annotated[List[MemberSetting], Field(default_factory=list)]
