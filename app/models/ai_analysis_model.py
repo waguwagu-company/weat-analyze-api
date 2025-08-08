@@ -9,7 +9,7 @@ class ChatResponse(BaseModel):
     
     
 class ValidationRequest(BaseModel):
-    input: str
+    userInput: str
     
 class ValidationResponse(BaseModel):
     isValid: bool
