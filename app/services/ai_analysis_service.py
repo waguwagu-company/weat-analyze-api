@@ -1,5 +1,7 @@
 import requests, logging, httpx, json, re
 from app.core.config import CLOVA_API_KEY, CLOVA_API_URL
+from app.common.responses import ErrorResponse, SuccessResponse
+from app.common.error_codes import ErrorCode
 
 
 async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
@@ -39,49 +41,39 @@ async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
             
             if data.get("status", {}).get("code") != "20000":
                 print(f"CLOVA 응답 상태 오류: {data.get('status')}")
-                return json.dumps({
-                    "isValid": False,
-                    "message": "AI 응답 상태 코드 오류가 발생했어요. 다시 시도해 주세요."
-                })
+                error = ErrorCode.AI_INTERNAL_ERROR
+                return ErrorResponse(code=error.code, message=error.message)
 
             # Clova 응답 구조에 따라 결과 파싱
             content = data.get("result", {}).get("message", {}).get("content", "")
             if not content:
-                logging.error("Clova 응답에서 content가 비어 있습니다.")
-                return json.dumps({
-                    "isValid": False,
-                    "message": "AI 응답이 비어 있습니다. 다시 시도해 주세요."
-                })
+                error = ErrorCode.AI_EMPTY_RESPONSE
+                return ErrorResponse(code=error.code, message=error.message)
 
 
             # content 안에서 JSON만 추출 
             match = re.search(r'\{[\s\S]*\}', content)
             if not match:
-                logging.error(f"응답 content에서 JSON을 찾을 수 없습니다: {content}")
-                return json.dumps({
-                    "isValid": False,
-                    "message": "AI 응답에서 유효한 JSON 형식을 찾지 못했어요."
-                })
+                error = ErrorCode.INVALID_JSON_FORMAT
+                return ErrorResponse(code=error.code, message=error.message)
 
             extracted_json_str = match.group(0)
             try:
                 parsed = json.loads(extracted_json_str)
-                return json.dumps(parsed, ensure_ascii=False)
+                # 성공 응답
+                return SuccessResponse(data=parsed)
             except json.JSONDecodeError as e:
                 logging.error(f"JSON 파싱 실패: {e}")
-                return json.dumps({
-                    "isValid": False,
-                    "message": "AI 응답 형식이 잘못되어 파싱할 수 없습니다."
-                })
+                error = ErrorCode.INVALID_JSON_FORMAT
+                return ErrorResponse(code=error.code, message=error.message)
+
     except httpx.HTTPStatusError as e:
         logging.error(f"CLOVA API HTTP 오류: {e.response.status_code} - {e.response.text}")
-        return json.dumps({
-            "isValid": False,
-            "message": "AI 호출에 실패했어요. 다시 시도해 주세요."
-        })
+        error = ErrorCode.AI_INTERNAL_ERROR
+        return ErrorResponse(code=error.code, message=error.message)
+
     except Exception as e:
         logging.exception("예기치 못한 오류")
-        return json.dumps({
-            "isValid": False,
-            "message": "잠시 오류가 발생했어요. 나중에 다시 시도해 주세요."
-        })
+        error = ErrorCode.UNKNOWN_ERROR
+        return ErrorResponse(code=error.code, message=error.message)
+
