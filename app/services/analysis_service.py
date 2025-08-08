@@ -1,7 +1,6 @@
 from statistics import mean
 from typing import Dict, List, Tuple, Optional, Any
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
-from app.services.ai_analysis_service import request_ai_analysis
 from app.services.place_service import *
 import re
 
@@ -305,7 +304,7 @@ def convert_to_response_format(group_id: str, top_places: List[Dict[str, Any]]) 
                     ),
                     "analysisBasisList": [
                         {
-                            "analysisBasisType": "리뷰",
+                            "analysisBasisType": "REVIEW",
                             "analysisBasisContent": review.get("text")
                         }
                         for review in place.get("topReviews", [])[:2]
