@@ -1,11 +1,52 @@
 import httpx
 import json
 from pathlib import Path
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
 from app.core.config import GOOGLE_PLACES_API_KEY, GOOGLE_PLACES_API_MODE
 from app.models.search_nearby_places_api_response import PlacesResponse
 from app.models.place_detail_api_response import PlaceDetailResponse
+
+"""
+기준 위치(x, y)를 기반으로 주변 음식점 정보를 검색하고,
+각 장소의 리뷰 정보만 수집하여 반환. (사진은 포함하지 않음)
+
+Returns:
+    List[Dict]: 각 장소의 정보 및 리뷰 목록
+"""
+async def fetch_nearby_place_infos(x: float, y: float, radius: float = 500.0, limit: int = 10) -> List[Dict[str, Any]]:
+    try:
+        result = call_search_nearby_places_api(latitude=x, longitude=y, radius=radius, max_results=limit)
+
+        places_data = []
+
+        for place in result.places:
+            place_info = {
+                "placeId": place.id,
+                "name": place.displayName.text,
+                "address": place.formattedAddress,
+                "ratingCount": place.userRatingCount,
+                "priceLevel": place.priceLevel,
+                "reviews": []
+            }
+
+            # 리뷰 정보 포함
+            if place.reviews:
+                place_info["reviews"] = [
+                    {
+                        "author": r.authorAttribution.displayName,
+                        "rating": r.rating,
+                        "text": r.text.text
+                    }
+                    for r in place.reviews
+                ]
+
+            places_data.append(place_info)
+
+        return places_data
+
+    except Exception as e:
+        print(f"[장소 조회 오류] {e}")
+        return []
 
 """
  특정 좌표/주소 기준 인근 장소 조회

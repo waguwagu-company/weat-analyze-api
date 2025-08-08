@@ -1,7 +1,10 @@
 from statistics import mean
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional, Any
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
 from app.services.ai_analysis_service import request_ai_analysis
+from app.services.place_service import *
+import re
+
 """
     분석 요청을 전처리하여 멤버별 설정정보를 하나의 데이터 재구성
     - 사용자 유형(개인/단체)
@@ -146,6 +149,41 @@ def build_input_text_prompt(input_texts: list[str]) -> str:
     )
     return prompt
 
+
+
+"""
+단일 리뷰에 대해 사용자의 요구조건과 얼마나 부합하는지 AI 평가 요청
+Returns:
+    float: 적합도 점수 (0.0~10.0) 또는 기본값 5.0
+"""
+async def score_review_with_ai(review_text: str, user_conditions: str) -> float:
+    prompt = (
+        f"다음은 음식점 리뷰입니다:\n\"{review_text}\"\n\n"
+        f"사용자 조건: {user_conditions}\n"
+        "위 리뷰가 해당 조건에 얼마나 부합하는지 10점 만점으로 점수를 매겨주세요.\n"
+        "소수점 첫째 자리까지 반영해서 평가해 주세요.\n"
+        "설명 없이 숫자만 답해주세요. 예: 8.4점"
+    )
+
+    response = await call_clova_ai(prompt)
+
+    # "소숫점 포함된 숫자 + 점" 형식 예: 7.5점
+    match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\s*점\b', response)
+    if match:
+        score = float(match.group(1))
+        print(f"[AI 응답 파싱 성공] {response} → {score}점")
+        return min(max(score, 0.0), 10.0)
+
+    # "소숫점 포함 숫자"만 있는 경우 예: 7.5
+    match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\b', response)
+    if match:
+        score = float(match.group(1))
+        print(f"[AI 응답 파싱 성공] {response} → {score}점")
+        return min(max(score, 0.0), 10.0)
+
+    # 실패 시 기본점수 반환
+    print(f"[AI 응답 파싱 실패] 원본 응답: {response} → 기본값 5.0 반환")
+    return 5.0
 
 
 ####
