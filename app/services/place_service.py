@@ -4,49 +4,13 @@ from pathlib import Path
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from app.core.config import GOOGLE_PLACES_API_KEY, GOOGLE_PLACES_API_MODE
+from app.models.search_nearby_places_api_response import PlacesResponse
+from app.models.place_detail_api_response import PlaceDetailResponse
 
-class DisplayName(BaseModel):
-    text: Optional[str] = None
-    languageCode: Optional[str] = None
-
-
-class ReviewText(BaseModel):
-    text: Optional[str] = None
-    languageCode: Optional[str] = None
-
-
-class AuthorAttribution(BaseModel):
-    displayName: Optional[str] = None
-    uri: Optional[str] = None
-    photoUri: Optional[str] = None
-
-
-class Review(BaseModel):
-    name: Optional[str] = None
-    relativePublishTimeDescription: Optional[str] = None
-    rating: Optional[int] = None
-    text: Optional[ReviewText] = None
-    originalText: Optional[ReviewText] = None
-    authorAttribution: Optional[AuthorAttribution] = None
-    publishTime: Optional[str] = None
-    flagContentUri: Optional[str] = None
-    googleMapsUri: Optional[str] = None
-
-
-class Place(BaseModel):
-    id: Optional[str] = None
-    formattedAddress: Optional[str] = None
-    priceLevel: Optional[str] = None
-    userRatingCount: Optional[int] = None
-    displayName: Optional[DisplayName] = None
-    reviews: Optional[List[Review]] = None
-
-
-class PlacesResponse(BaseModel):
-    places: Optional[List[Place]] = None
-
-
-def search_nearby_places_sync(
+"""
+ 특정 좌표/주소 기준 인근 장소 조회
+"""
+def call_search_nearby_places_api (
         latitude: float,
         longitude: float,
         radius: float = 500.0,
@@ -101,14 +65,54 @@ def search_nearby_places_sync(
     return PlacesResponse(**response.json())
 
 
+"""
+특정 장소 세부정보 검색
+"""
+def call_place_details_api(
+    place_id: str,
+    fields: str = "name,photos",
+    language: str = "ko"
+) -> PlaceDetailResponse:
+    url = "https://maps.googleapis.com/maps/api/place/details/json"
+    params = {
+        "place_id": place_id,
+        "fields": fields,
+        "language": language,
+        "key": GOOGLE_PLACES_API_KEY
+    }
+
+    response = httpx.get(url, params=params)
+    response.raise_for_status()
+
+    return PlaceDetailResponse(**response.json())
+
+def call_place_photo_api (photo_reference: str, maxwidth: int = 400) -> Optional[bytes]:
+    url = "https://maps.googleapis.com/maps/api/place/photo"
+    params = {
+        "maxwidth": str(maxwidth),
+        "photo_reference": photo_reference,
+        "key": GOOGLE_PLACES_API_KEY
+    }
+
+    with httpx.Client(follow_redirects=True) as client:
+        response = client.get(url, params=params)
+        response.raise_for_status()
+        return response.content
+
+
+
 def place_api_call_test():
     try:
         latitude = 37.5665
         longitude = 126.9780
 
-        result = search_nearby_places_sync(latitude, longitude)
+        result = call_search_nearby_places_api(latitude, longitude)
 
         for place in result.places:
+
+            place_detail = call_place_details_api(place.id)
+        
+
             print(f"[{place.displayName.text}]")
             print(f"{place.formattedAddress}")
             print(f"  - 평점 수: {place.userRatingCount}, 가격대: {place.priceLevel}")
@@ -117,8 +121,15 @@ def place_api_call_test():
                     print(f"  - 리뷰️[별점:{review.rating}]: {review.text.text[:50]}...")
             print()
 
+            print(f"place_detail.result.photos 개수 => {len(place_detail.result.photos)}")
+
+            for idx, photo in enumerate(place_detail.result.photos):
+                print(f"[{idx+1}] photo_reference: {photo.photo_reference}")
+
     except Exception as e:
         print(f"에러 발생: {e}")
+
+
 
 if __name__ == "__main__":
     place_api_call_test()
