@@ -257,6 +257,13 @@ async def evaluate_places_and_rank(
             print(f"    {t_idx}. {t['text'][:50]}... (점수: {t['score']})")
 
     scored_places.sort(key=lambda p: p["score"], reverse=True)
+
+    print("\n==============================")
+    print("[최종 추천 장소 TOP5 점수]")
+    for rank, p in enumerate(scored_places[:top_k], start=1):
+        print(f"{rank}. {p.get('name', '이름 없음')} → 종합 점수: {p['score']}")
+    print("==============================\n")
+
     return scored_places[:top_k]
 
 async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Dict[str, Any]:
