@@ -9,7 +9,7 @@ class Photo(BaseModel):
 
 
 class PlaceDetailResult(BaseModel):
-    name: Optional[str]
+    name: Optional[str] = ""
     photos: Optional[List[Photo]]
 
 

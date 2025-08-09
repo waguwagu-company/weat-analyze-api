@@ -288,6 +288,9 @@ async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Dict[
     #     "topPlaces": top_places
     # }
 
+    # 상위 장소들의 사진 정보
+    top_places = await fetch_place_images(top_places)
+
     response = convert_to_response_format(group_id, top_places)
     return response
 
@@ -303,7 +306,7 @@ def convert_to_response_format(group_id: str, top_places: List[Dict[str, Any]]) 
                     "place": {
                         "placeName": place.get("name"),
                         "placeRoadNameAddress": place.get("address"),
-                        "placeImageList": []  # 현재 이미지 사용하지 않음
+                        "placeImageList": place.get("photos", [])
                     },
                     "analysisResultDetailContent": (
                         place.get("topReviews", [{}])[0].get("text", "")

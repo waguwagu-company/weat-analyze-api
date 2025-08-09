@@ -26,7 +26,8 @@ async def fetch_nearby_place_infos(x: float, y: float, radius: float = 500.0, li
                 "address": place.formattedAddress,
                 "ratingCount": place.userRatingCount,
                 "priceLevel": place.priceLevel,
-                "reviews": []
+                "reviews": [],
+                "photos":[]
             }
 
             # 리뷰 정보 포함
@@ -112,6 +113,44 @@ def call_search_nearby_places_api (
     return PlacesResponse(**response.json())
 
 
+async def fetch_place_images(top_places: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    for place in top_places:
+        print(f"[{place.get('name', '이름 없음')}] 장소 이름")
+        try:
+            place_id = place.get("placeId")
+            if not place_id:
+                print(f"[{place.get('name', '이름 없음')}] 장소 ID 미존재")
+                continue
+
+            # 장소 세부 정보 검색
+            place_detail = call_place_details_api(place_id, fields="photos")
+
+            # photos_url 리스트에 사진 URL 추가
+            if place_detail.result and place_detail.result.photos:
+                photos_url = []
+                # 개발 단계에서는 사진 1개만 가져오기
+                for i, photo in enumerate(place_detail.result.photos[:1]):
+                    photo_reference = photo.photo_reference
+                    print(f"photo_reference: {photo_reference}")
+                    
+                    photo_url = generate_place_photo_url(photo_reference)
+                    
+                    print(f"사진 URL: {photo_url}")
+                    photos_url.append(photo_url)
+
+                place["photos"] = photos_url
+            else:
+                print(f"사진 없음")
+
+
+        except Exception as e:
+            print(f"[{place.get('name', '이름 없음')}] 사진 가져오기 중 오류 발생: {e}")
+
+    return top_places
+
+
+
+
 """
 특정 장소 세부정보 검색
 """
@@ -133,18 +172,22 @@ def call_place_details_api(
 
     return PlaceDetailResponse(**response.json())
 
-def call_place_photo_api (photo_reference: str, maxwidth: int = 400) -> Optional[bytes]:
-    url = "https://maps.googleapis.com/maps/api/place/photo"
-    params = {
-        "maxwidth": str(maxwidth),
-        "photo_reference": photo_reference,
-        "key": GOOGLE_PLACES_API_KEY
-    }
+def generate_place_photo_url (photo_reference: str, maxwidth: int = 400) -> Optional[bytes]:
+    # 구글 Places API에서 사진을 가져오는 URL을 생성합니다.
+    base_url = "https://maps.googleapis.com/maps/api/place/photo"
+    photo_url = f"{base_url}?maxwidth={maxwidth}&photo_reference={photo_reference}&key={GOOGLE_PLACES_API_KEY}"
+    return photo_url
+    # url = "https://maps.googleapis.com/maps/api/place/photo"
+    # params = {
+    #     "maxwidth": str(maxwidth),
+    #     "photo_reference": photo_reference,
+    #     "key": GOOGLE_PLACES_API_KEY
+    # }
 
-    with httpx.Client(follow_redirects=True) as client:
-        response = client.get(url, params=params)
-        response.raise_for_status()
-        return response.content
+    # with httpx.Client(follow_redirects=True) as client:
+    #     response = client.get(url, params=params)
+    #     response.raise_for_status()
+    #     return response.content
 
 
 
