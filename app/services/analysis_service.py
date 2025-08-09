@@ -155,34 +155,55 @@ def build_input_text_prompt(input_texts: list[str]) -> str:
 Returns:
     float: 적합도 점수 (0.0~10.0) 또는 기본값 5.0
 """
-async def score_review_with_ai(review_text: str, user_conditions: str) -> float:
+async def score_reviews_with_ai(review_texts: List[str], user_conditions: str) -> List[float]:
+    reviews_prompt = "\n".join(review_texts)
+    
     prompt = (
-        f"다음은 음식점 리뷰입니다:\n\"{review_text}\"\n\n"
+        f"다음은 음식점 리뷰입니다:\n\"{reviews_prompt}\"\n\n"
         f"사용자 조건: {user_conditions}\n"
-        "위 리뷰가 해당 조건에 얼마나 부합하는지 10점 만점으로 점수를 매겨주세요.\n"
+        "위 리뷰들이 해당 조건에 얼마나 부합하는지 평가하여 10점 만점으로 차례대로 점수를 매겨주세요.\n"
         "소수점 첫째 자리까지 반영해서 평가해 주세요.\n"
-        "설명 없이 숫자만 답해주세요. 예: 8.4점"
+        "숫자만 답하되 각 리뷰의 점수를 아래와 같이 공백으로 구분하여 차례대로 적어주세요."
+        "어떤 경우에도 부연 설명은 하지 말고 아래 형식으로 답해주세요."
+        "0.0 0.0 0.0"
     )
 
     response = await call_clova_ai(prompt)
+    print(f"클로바 응답 Content: {response}")
+    
+    # 여러 점수를 공백으로 구분하여 받기 (예: "9.5 4.0 10.0")
+    scores = []
+    for score_str in response.split():
+        # 숫자만 추출
+        match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\b', score_str)
+        if match:
+            score = float(match.group(1))
+            scores.append(min(max(score, 0.0), 10.0))
+        else:
+            # 점수 파싱 실패 시 기본값 5.0
+            print(f"[AI 응답 파싱 실패] 원본 응답: {score_str} → 기본값 1.0 반환")
+            scores.append(1.0)
 
-    # "소숫점 포함된 숫자 + 점" 형식 예: 7.5점
-    match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\s*점\b', response)
-    if match:
-        score = float(match.group(1))
-        print(f"[AI 응답 파싱 성공] {response} → {score}점")
-        return min(max(score, 0.0), 10.0)
+    print(f"[AI 응답 파싱 성공] {response} → 점수들: {scores}")
+    return scores
 
-    # "소숫점 포함 숫자"만 있는 경우 예: 7.5
-    match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\b', response)
-    if match:
-        score = float(match.group(1))
-        print(f"[AI 응답 파싱 성공] {response} → {score}점")
-        return min(max(score, 0.0), 10.0)
+    # # "소숫점 포함된 숫자 + 점" 형식 예: 7.5점
+    # match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\s*점\b', response)
+    # if match:
+    #     score = float(match.group(1))
+    #     print(f"[AI 응답 파싱 성공] {response} → {score}점")
+    #     return min(max(score, 0.0), 10.0)
 
-    # 실패 시 기본점수 반환
-    print(f"[AI 응답 파싱 실패] 원본 응답: {response} → 기본값 5.0 반환")
-    return 5.0
+    # # "소숫점 포함 숫자"만 있는 경우 예: 7.5
+    # match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\b', response)
+    # if match:
+    #     score = float(match.group(1))
+    #     print(f"[AI 응답 파싱 성공] {response} → {score}점")
+    #     return min(max(score, 0.0), 10.0)
+
+    # # 실패 시 기본점수 반환
+    # print(f"[AI 응답 파싱 실패] 원본 응답: {response} → 기본값 5.0 반환")
+    # return 5.0
 
 """
 해당 장소의 리뷰들에 대해 AI 적합도 평가 → 평균 점수 반환
@@ -231,9 +252,15 @@ async def evaluate_places_and_rank(
         print(f"\n[장소 {idx}] {place.get('name', '이름 없음')} 평가 시작")
         reviews = place.get("reviews", [])[:10]
         top_reviews = []
+        
+        # 리뷰 텍스트 생성
+        review_texts = [f"{i+1}번 리뷰: {r['text']}" for i, r in enumerate(reviews)]
+        
+        # AI로 점수 계산
+        scores = await score_reviews_with_ai(review_texts, user_conditions)
 
-        for i, r in enumerate(reviews, start=1):
-            score = await score_review_with_ai(r["text"], user_conditions)
+        # 각 리뷰에 점수 매핑
+        for i, (r, score) in enumerate(zip(reviews, scores), start=1):
             r["score"] = score
             if score is not None:
                 top_reviews.append(r)
@@ -241,9 +268,11 @@ async def evaluate_places_and_rank(
             else:
                 print(f"  [리뷰 {i}] \"{r['text'][:30]}...\" → 점수 계산 실패 (기본값 사용)")
 
+        # 점수를 기준으로 상위 2개 리뷰 정렬
         top_reviews_sorted = sorted(top_reviews, key=lambda r: r["score"], reverse=True)
         place["topReviews"] = top_reviews_sorted[:2]
 
+        # 평균 점수 계산
         avg_score = round(
             sum(r["score"] for r in top_reviews_sorted) / len(top_reviews_sorted), 2
         ) if top_reviews_sorted else 0.0
@@ -254,8 +283,9 @@ async def evaluate_places_and_rank(
         print(f"  → 종합 점수: {avg_score}")
         print(f"  → Top 리뷰:")
         for t_idx, t in enumerate(place["topReviews"], start=1):
-            print(f"    {t_idx}. {t['text'][:50]}... (점수: {t['score']})")
+            print(f"  {t_idx}. {t['text'][:50]}... (점수: {t['score']})")
 
+    # 최종 결과를 점수를 기준으로 정렬
     scored_places.sort(key=lambda p: p["score"], reverse=True)
 
     print("\n==============================")
@@ -359,9 +389,9 @@ async def call_clova_ai(prompt: str, analysis_data: str = "") -> str:
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            log.info(f"[CLOVA 요청 바디]: {body}")
+            print(f"[CLOVA 요청 바디]: {body}")
             response = await client.post(CLOVA_API_URL, headers=headers, json=body)
-            log.info(f"[CLOVA 응답 바디]: {response.text}")
+            print(f"[CLOVA 응답 바디]: {response.text}")
 
             response.raise_for_status()
             data = response.json()
