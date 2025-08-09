@@ -279,16 +279,11 @@ async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Dict[
 
     # 장소 조회
     places = await fetch_nearby_place_infos(base_x, base_y)
-
+    
     # 적합도 평가
     top_places = await evaluate_places_and_rank(places, user_condition)
 
-    # return {
-    #     "userCondition": user_condition,
-    #     "topPlaces": top_places
-    # }
-
-    # 상위 장소들의 사진 정보
+    # 상위 장소들의 사진 url 가져오기
     top_places = await fetch_place_images(top_places)
 
     response = convert_to_response_format(group_id, top_places)

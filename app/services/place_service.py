@@ -128,8 +128,8 @@ async def fetch_place_images(top_places: List[Dict[str, Any]]) -> List[Dict[str,
             # photos_url 리스트에 사진 URL 추가
             if place_detail.result and place_detail.result.photos:
                 photos_url = []
-                # 개발 단계에서는 사진 1개만 가져오기
-                for i, photo in enumerate(place_detail.result.photos[:1]):
+                # 개발 단계에서는 사진 2개만 가져오기
+                for i, photo in enumerate(place_detail.result.photos[:2]):
                     photo_reference = photo.photo_reference
                     print(f"photo_reference: {photo_reference}")
                     
@@ -173,21 +173,19 @@ def call_place_details_api(
     return PlaceDetailResponse(**response.json())
 
 def generate_place_photo_url (photo_reference: str, maxwidth: int = 400) -> Optional[bytes]:
-    # 구글 Places API에서 사진을 가져오는 URL을 생성합니다.
-    base_url = "https://maps.googleapis.com/maps/api/place/photo"
-    photo_url = f"{base_url}?maxwidth={maxwidth}&photo_reference={photo_reference}&key={GOOGLE_PLACES_API_KEY}"
-    return photo_url
-    # url = "https://maps.googleapis.com/maps/api/place/photo"
-    # params = {
-    #     "maxwidth": str(maxwidth),
-    #     "photo_reference": photo_reference,
-    #     "key": GOOGLE_PLACES_API_KEY
-    # }
+    url = "https://maps.googleapis.com/maps/api/place/photo"
+    params = {
+        "maxwidth": str(maxwidth),
+        "photo_reference": photo_reference,
+        "key": GOOGLE_PLACES_API_KEY
+    }
 
-    # with httpx.Client(follow_redirects=True) as client:
-    #     response = client.get(url, params=params)
-    #     response.raise_for_status()
-    #     return response.content
+    with httpx.Client(follow_redirects=True) as client:
+        response = client.get(url, params=params)
+        response.raise_for_status()
+        
+        # API key가 포함된 url이 아닌 user content url 반환
+        return str(response.url)
 
 
 
