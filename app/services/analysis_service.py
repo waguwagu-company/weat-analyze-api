@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, Optional, Any
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
 from app.services.place_service import *
 import re
+from collections import defaultdict
 
 """
     분석 요청을 전처리하여 멤버별 설정정보를 하나의 데이터 재구성
@@ -21,21 +22,17 @@ def analyze_request_preprocessing(request: AIAnalysisRequest) -> Dict:
     base_x, base_y, is_group = calculate_base_position(members)
     print(f">> 분석 유형: {'단체' if is_group else '개인'}")
 
-    # 카테고리 태그 취합
-    all_category_tags = []
+    # 카테고리 태그 취합 (태그별로 선호/비선호 개수 증가)
+    category_tag_count = defaultdict(lambda: {"preferred": 0, "non_preferred": 0})
     for m in members:
         for c in m.categoryList:
             if c.categoryTagName:
-                all_category_tags.append({
-                    "tag": c.categoryTagName,
-                    "isPreferred": c.isPreferred
-                })
+                if c.isPreferred:
+                    category_tag_count[c.categoryTagName]["preferred"] += 1
+                else:
+                    category_tag_count[c.categoryTagName]["non_preferred"] += 1
 
-    print(f">> 총 카테고리 태그 수: {len(all_category_tags)}")
-    preferred = [t for t in all_category_tags if t["isPreferred"]]
-    non_preferred = [t for t in all_category_tags if t["isPreferred"] is False]
-    print(f"  - 선호 태그 수: {len(preferred)}")
-    print(f"  - 비선호 태그 수: {len(non_preferred)}")
+    print(f">> 카테고리 태그 취합 결과: {dict(category_tag_count)}")
 
     # 비정형 입력 취합
     all_input_texts = [m.inputText for m in members if m.inputText]
@@ -49,7 +46,7 @@ def analyze_request_preprocessing(request: AIAnalysisRequest) -> Dict:
             "x": base_x,
             "y": base_y
         },
-        "categoryPreference": all_category_tags,
+        "categoryPreference": dict(category_tag_count),
         "inputTextSummarySource": all_input_texts
     }
 
@@ -60,19 +57,23 @@ async def summarize_group_preferences_with_ai(request: AIAnalysisRequest) -> Dic
 
     # 요청 전처리
     preprocessed = analyze_request_preprocessing(request)
-    category_tags = preprocessed["categoryPreference"]
+    print(f"요정 전처리 완료")
+    category_tag_count = preprocessed["categoryPreference"]
     input_texts = preprocessed["inputTextSummarySource"]
 
     # 프롬프트 생성
-    category_prompt = build_category_prompt(category_tags)
+    category_prompt = build_category_prompt(category_tag_count)
+    print(f"Category Prompt: {category_prompt}")
     input_text_prompt = build_input_text_prompt(input_texts)
+    print(f"Input Text Prompt: {input_text_prompt}")
+    
 
     # Clova에 요청
     category_response_text = await call_clova_ai(prompt=category_prompt, analysis_data="")
     input_text_response_text = await call_clova_ai(prompt=input_text_prompt, analysis_data="")
 
     return {
-        "categoryResponse": category_response_text,
+        "categoryResponse": category_response_text.split(";"),
         "inputTextResponse": input_text_response_text
     }
 
@@ -107,27 +108,31 @@ def calculate_base_position(members: List[MemberSetting]) -> Tuple[float, float,
 단체 사용자의 카테고리태그 데이터를 기반으로, 
 AI에게 카테고리태그 취합 요청을 위한 프롬프트 생성
 """
-def build_category_prompt(category_tags: list[dict]) -> str:
-    if not category_tags:
+def build_category_prompt(category_tag_count: dict) -> str:
+    if not category_tag_count:
         return "사용자들이 선택한 선호/비선호 음식 태그가 없습니다."
 
-    lines = []
-    for tag in category_tags:
-        status = "선호" if tag["isPreferred"] else "비선호"
-        lines.append(f"- {tag['tag']} ({status})")
+    print(f"build_category_prompt")
+    category_tags = []
+    for tag_name, counts in category_tag_count.items():
+        category_tags.append({
+            "tag": tag_name,
+            "preferred": counts["preferred"],
+            "non_preferred": counts["non_preferred"]
+        })
 
-    # TODO: 프롬프트 템플릿은 분석 파이프라인 완성 후 수정 필요
-    prompt = (
-        "다음은 사용자들이 입력한 음식 선호 태그입니다:\n"
-        + "\n".join(lines)
-        + "\n\n위 데이터를 바탕으로, 가능한 한 모두의 취향을 존중할 수 있는 음식 태그를 선정해 주세요.\n"
-        + "너무 많은 태그를 포함하지 말고, 공통된 선호를 고려하여 **3개 정도**만 추려 주세요.\n"
-        + "응답에는 \"어떤 설명도 포함하지 말고\", 아래와 같은 형식으로 숫자와 태그명만 출력해 주세요:\n\n"
-        + "1. 뷔페\n"
-        + "2. 돼지고기\n"
-        + "3. 게/랍스터"
-    )
+    # 상위 2개의 선호 태그만 요청
+    prompt = f"""
+    다음은 사용자들이 선택한 음식 태그입니다. 아래의 데이터를 바탕으로 선호도와 비선호도를 고려하여 **2개의 태그**만 선정해 주세요:
+    {"\n".join([f"- {tag['tag']} (선호: {tag['preferred']}, 비선호: {tag['non_preferred']})" for tag in category_tags])}
+
+    2개의 태그를 선택한 뒤 아무런 부연 설명 없이 세미클론(;)으로 구분하여 보내주세요.
+    응답 형식: 
+    태그명;태그명
+    """
+
     return prompt
+
 
 """
     여러 사용자의 비정형 입력값들을 기반으로
@@ -153,7 +158,7 @@ def build_input_text_prompt(input_texts: list[str]) -> str:
 """
 단일 리뷰에 대해 사용자의 요구조건과 얼마나 부합하는지 AI 평가 요청
 Returns:
-    float: 적합도 점수 (0.0~10.0) 또는 기본값 5.0
+    float: 적합도 점수 (0.0~10.0) 또는 기본값 1.0
 """
 async def score_reviews_with_ai(review_texts: List[str], user_conditions: str) -> List[float]:
     reviews_prompt = "\n".join(review_texts)
@@ -163,87 +168,70 @@ async def score_reviews_with_ai(review_texts: List[str], user_conditions: str) -
         f"사용자 조건: {user_conditions}\n"
         "위 리뷰들이 해당 조건에 얼마나 부합하는지 평가하여 10점 만점으로 차례대로 점수를 매겨주세요.\n"
         "소수점 첫째 자리까지 반영해서 평가해 주세요.\n"
-        "숫자만 답하되 각 리뷰의 점수를 아래와 같이 공백으로 구분하여 차례대로 적어주세요."
+        "숫자만 답하되 각 리뷰의 점수를 아래와 같이 세미콜론(;)으로 구분하여 차례대로 적어주세요."
         "어떤 경우에도 부연 설명은 하지 말고 아래 형식으로 답해주세요."
-        "0.0 0.0 0.0"
+        "0.0;0.0;0.0"
     )
 
     response = await call_clova_ai(prompt)
     print(f"클로바 응답 Content: {response}")
     
-    # 여러 점수를 공백으로 구분하여 받기 (예: "9.5 4.0 10.0")
+    # 여러 점수를 세미콜론으로 구분하여 받기 (예: "9.5;4.0;10.0")
     scores = []
-    for score_str in response.split():
+    for score_str in response.split(";"):
         # 숫자만 추출
         match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\b', score_str)
         if match:
             score = float(match.group(1))
             scores.append(min(max(score, 0.0), 10.0))
         else:
-            # 점수 파싱 실패 시 기본값 5.0
+            # 점수 파싱 실패 시 기본값 1.0
             print(f"[AI 응답 파싱 실패] 원본 응답: {score_str} → 기본값 1.0 반환")
             scores.append(1.0)
 
     print(f"[AI 응답 파싱 성공] {response} → 점수들: {scores}")
     return scores
 
-    # # "소숫점 포함된 숫자 + 점" 형식 예: 7.5점
-    # match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\s*점\b', response)
-    # if match:
-    #     score = float(match.group(1))
-    #     print(f"[AI 응답 파싱 성공] {response} → {score}점")
-    #     return min(max(score, 0.0), 10.0)
-
-    # # "소숫점 포함 숫자"만 있는 경우 예: 7.5
-    # match = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\b', response)
-    # if match:
-    #     score = float(match.group(1))
-    #     print(f"[AI 응답 파싱 성공] {response} → {score}점")
-    #     return min(max(score, 0.0), 10.0)
-
-    # # 실패 시 기본점수 반환
-    # print(f"[AI 응답 파싱 실패] 원본 응답: {response} → 기본값 5.0 반환")
-    # return 5.0
-
 """
 해당 장소의 리뷰들에 대해 AI 적합도 평가 → 평균 점수 반환
 추가로 topReviews 필드에 상위 리뷰 5개 저장
 """
-async def calculate_place_score(place: Dict[str, Any], user_conditions: str) -> float:
-    reviews = place.get("reviews", [])[:10]  # 최대 10개 평가
+# 현재 미사용 함수
+# async def calculate_place_score(place: Dict[str, Any], user_conditions: str) -> float:
+#     reviews = place.get("reviews", [])[:10]  # 최대 10개 평가
 
-    if not reviews:
-        place["topReviews"] = []
-        return 0.0
+#     if not reviews:
+#         place["topReviews"] = []
+#         return 0.0
 
-    scored_reviews = []
-    for r in reviews:
-        score = await score_review_with_ai(r["text"], user_conditions)
-        if score is not None:
-            scored_reviews.append({
-                "text": r["text"],
-                "score": score,
-                "author": r.get("author", None)
-            })
+#     scored_reviews = []
+#     for r in reviews:
+#         score = await score_review_with_ai(r["text"], user_conditions)
+#         if score is not None:
+#             scored_reviews.append({
+#                 "text": r["text"],
+#                 "score": score,
+#                 "author": r.get("author", None)
+#             })
 
-    if not scored_reviews:
-        place["topReviews"] = []
-        return 0.0
+#     if not scored_reviews:
+#         place["topReviews"] = []
+#         return 0.0
 
-    # 점수 높은 순으로 정렬 후 상위 5개만 유지
-    top_reviews = sorted(scored_reviews, key=lambda x: x["score"], reverse=True)[:5]
+#     # 점수 높은 순으로 정렬 후 상위 5개만 유지
+#     top_reviews = sorted(scored_reviews, key=lambda x: x["score"], reverse=True)[:5]
 
-    # 장소에 topReviews 필드 추가
-    place["topReviews"] = top_reviews
+#     # 장소에 topReviews 필드 추가
+#     place["topReviews"] = top_reviews
 
-    # 평균 점수 반환
-    return round(sum(r["score"] for r in scored_reviews) / len(scored_reviews), 2)
+#     # 평균 점수 반환
+#     return round(sum(r["score"] for r in scored_reviews) / len(scored_reviews), 2)
 
 """
 모든 장소에 대해 AI 기반 점수 계산 후 상위 N개 반환
 """
 async def evaluate_places_and_rank(
-    places: List[Dict[str, Any]], user_conditions: str, top_k: int = 5
+    places: List[Dict[str, Any]], user_conditions: str, top_k: int = 3
 ) -> List[Dict[str, Any]]:
 
     scored_places = []
@@ -308,7 +296,7 @@ async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Dict[
     group_id = preprocessed["groupId"]
 
     # 장소 조회
-    places = await fetch_nearby_place_infos(base_x, base_y)
+    places = await fetch_nearby_place_infos(base_x, base_y, ai_summary["categoryResponse"])
     
     # 적합도 평가
     top_places = await evaluate_places_and_rank(places, user_condition)

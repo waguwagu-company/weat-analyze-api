@@ -13,35 +13,37 @@ from app.models.place_detail_api_response import PlaceDetailResponse
 Returns:
     List[Dict]: 각 장소의 정보 및 리뷰 목록
 """
-async def fetch_nearby_place_infos(x: float, y: float, radius: float = 500.0, limit: int = 10) -> List[Dict[str, Any]]:
+async def fetch_nearby_place_infos(x: float, y: float, category_tags: List[str], radius: float = 500.0, limit: int = 10) -> List[Dict[str, Any]]:
     try:
-        result = call_search_nearby_places_api(latitude=x, longitude=y, radius=radius, max_results=limit)
-
         places_data = []
+        
+        # 태그를 키워드로 장소 검색
+        for tag in category_tags:
+            result = await call_search_nearby_places_api(latitude=x, longitude=y, radius=radius, max_results=limit, keyword=tag)
 
-        for place in result.places:
-            place_info = {
-                "placeId": place.id,
-                "name": place.displayName.text,
-                "address": place.formattedAddress,
-                "ratingCount": place.userRatingCount,
-                "priceLevel": place.priceLevel,
-                "reviews": [],
-                "photos":[]
-            }
+            for place in result.places:
+                place_info = {
+                    "placeId": place.id,
+                    "name": place.displayName.text,
+                    "address": place.formattedAddress,
+                    "ratingCount": place.userRatingCount,
+                    "priceLevel": place.priceLevel,
+                    "reviews": [],
+                    "photos":[]
+                }
 
-            # 리뷰 정보 포함
-            if place.reviews:
-                place_info["reviews"] = [
-                    {
-                        "author": r.authorAttribution.displayName,
-                        "rating": r.rating,
-                        "text": r.text.text
-                    }
-                    for r in place.reviews
-                ]
+                # 리뷰 정보 포함
+                if place.reviews:
+                    place_info["reviews"] = [
+                        {
+                            "author": r.authorAttribution.displayName,
+                            "rating": r.rating,
+                            "text": r.text.text
+                        }
+                        for r in place.reviews
+                    ]
 
-            places_data.append(place_info)
+                places_data.append(place_info)
 
         return places_data
 
@@ -52,11 +54,12 @@ async def fetch_nearby_place_infos(x: float, y: float, radius: float = 500.0, li
 """
  특정 좌표/주소 기준 인근 장소 조회
 """
-def call_search_nearby_places_api (
+async def call_search_nearby_places_api (
         latitude: float,
         longitude: float,
         radius: float = 500.0,
-        max_results: int = 20,
+        max_results: int = 10,
+        keyword: str = "",
         test_json_path: Optional[str] = None
 ) -> PlacesResponse:
     mode = GOOGLE_PLACES_API_MODE
@@ -77,7 +80,7 @@ def call_search_nearby_places_api (
         return PlacesResponse(**data)
 
     print("* API 호출")
-    url = "https://places.googleapis.com/v1/places:searchNearby"
+    url = "https://places.googleapis.com/v1/places:searchText"
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
@@ -92,22 +95,24 @@ def call_search_nearby_places_api (
         "Accept-Language": "ko"
     }
 
+    # 텍스트 검색 요청에 필요한 파라미터
     payload = {
-        "includedTypes": ["restaurant"],
+        "textQuery": keyword, 
         "maxResultCount": max_results,
-        "locationRestriction": {
+        "locationBias": {
             "circle": {
                 "center": {
-                    "latitude": latitude,
-                    "longitude": longitude
+                    "latitude": latitude, 
+                    "longitude": longitude 
                 },
-                "radius": radius
+                "radius": radius  
             }
-        }
+        },
+        "rankPreference": "RELEVANCE"  # 기본순위 사용 (선호도에 따른 순위는 설정되지 않음)
     }
 
-    with httpx.Client() as client:
-        response = client.post(url, headers=headers, json=payload)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, json=payload)
         response.raise_for_status()
 
     return PlacesResponse(**response.json())
