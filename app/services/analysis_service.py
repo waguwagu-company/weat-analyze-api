@@ -324,7 +324,10 @@ def convert_to_response_format(group_id: str, top_places: List[Dict[str, Any]]) 
                     "place": {
                         "placeName": place.get("name"),
                         "placeRoadNameAddress": place.get("address"),
-                        "placeImageList": place.get("photos", [])
+                        "placeImageList": [
+                            {"placeImageUrl": url}
+                            for url in place.get("photos", [])
+                        ]
                     },
                     "analysisResultDetailContent": (
                         place.get("topReviews", [{}])[0].get("text", "")
