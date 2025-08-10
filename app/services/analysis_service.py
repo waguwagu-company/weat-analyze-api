@@ -122,15 +122,20 @@ def build_category_prompt(category_tag_count: dict) -> str:
         })
 
     # 상위 2개의 선호 태그만 요청
+    tag_lines = "\n".join(
+        [f"- {tag['tag']} (선호: {tag['preferred']}, 비선호: {tag['non_preferred']})"
+        for tag in category_tags]
+    )
+
     prompt = f"""
     다음은 사용자들이 선택한 음식 태그입니다. 아래의 데이터를 바탕으로 선호도와 비선호도를 고려하여 **2개의 태그**만 선정해 주세요:
-    {"\n".join([f"- {tag['tag']} (선호: {tag['preferred']}, 비선호: {tag['non_preferred']})" for tag in category_tags])}
+    {tag_lines}
 
-    2개의 태그를 선택한 뒤 아무런 부연 설명 없이 세미클론(;)으로 구분하여 보내주세요.
+    2개의 태그를 선택한 뒤 아무런 부연 설명 없이 세미콜론(;)으로 구분하여 보내주세요.
     응답 형식: 
     태그명;태그명
     """
-
+    
     return prompt
 
 
