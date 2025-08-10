@@ -52,7 +52,14 @@ jobs:
 
             docker login ${{ secrets.DOCKER_REGISTRY_URL }} -u ${{ secrets.DOCKER_REGISTRY_USERNAME }} -p ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
             docker pull ${{ secrets.DOCKER_REGISTRY_URL }}/weat-analyze-api:latest
+
+
+
             docker stop weat-analyze-api || true
             docker rm weat-analyze-api || true
-            docker run -d --name weat-analyze-api -p 8000:8000 --env-file .env ${{ secrets.DOCKER_REGISTRY_URL }}/weat-analyze-api:latest
+            docker run -d --name weat-analyze-api \
+              --restart=always \
+              -p 8000:8000 \
+              --env-file .env \
+              ${{ secrets.DOCKER_REGISTRY_URL }}/weat-analyze-api:latest
             docker image prune -f
