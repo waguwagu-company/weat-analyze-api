@@ -55,3 +55,4 @@ jobs:
             docker stop weat-analyze-api || true
             docker rm weat-analyze-api || true
             docker run -d --name weat-analyze-api -p 8000:8000 --env-file .env ${{ secrets.DOCKER_REGISTRY_URL }}/weat-analyze-api:latest
+            docker image prune -f
