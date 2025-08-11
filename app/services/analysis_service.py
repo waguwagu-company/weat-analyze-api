@@ -241,50 +241,72 @@ async def evaluate_places_and_rank(
 
     scored_places = []
 
-    for idx, place in enumerate(places, start=1):
-        print(f"\n[장소 {idx}] {place.get('name', '이름 없음')} 평가 시작")
-        reviews = place.get("reviews", [])[:10]
-        top_reviews = []
-        
-        # 리뷰 텍스트 생성
-        review_texts = [f"{i+1}번 리뷰: {r['text']}" for i, r in enumerate(reviews)]
-        
-        # AI로 점수 계산
-        scores = await score_reviews_with_ai(review_texts, user_conditions)
-
-        # 각 리뷰에 점수 매핑
-        for i, (r, score) in enumerate(zip(reviews, scores), start=1):
-            r["score"] = score
-            if score is not None:
-                top_reviews.append(r)
-                print(f"  [리뷰 {i}] \"{r['text'][:30]}...\" → 점수: {score}")
+    try: 
+        for idx, place in enumerate(places, start=1):
+            print(f"\n[장소 {idx}] {place.get('name', '이름 없음')} 평가 시작")
+            reviews = place.get("reviews", [])[:10]
+            top_reviews = []
+            
+            # ===== 리뷰 데이터 점검 =====
+            if not reviews:
+                print("[DEBUG] reviews 리스트가 비어있습니다.")
             else:
-                print(f"  [리뷰 {i}] \"{r['text'][:30]}...\" → 점수 계산 실패 (기본값 사용)")
+                for r_idx, r in enumerate(reviews, start=1):
+                    if not isinstance(r, dict):
+                        print(f"[DEBUG] 리뷰 {r_idx} 비정상 데이터(타입):", r)
+                    elif r.get("text") is None:
+                        print(f"[DEBUG] 리뷰 {r_idx} text 없음:", r)
+            
+            # ===== 리뷰 텍스트 생성 (널 가드) =====
+            review_texts = [
+                f"{i+1}번 리뷰: { (r.get('text') or '') }"
+                for i, r in enumerate(reviews or [])
+                if isinstance(r, dict)
+            ]
+            
+            # ==== AI로 점수 계산 ====
+            scores = await score_reviews_with_ai(review_texts, user_conditions)
 
-        # 점수를 기준으로 상위 2개 리뷰 정렬
-        top_reviews_sorted = sorted(top_reviews, key=lambda r: r["score"], reverse=True)
-        place["topReviews"] = top_reviews_sorted[:2]
+            # ===== 각 리뷰에 점수 매핑 =====
+            for i, (r, score) in enumerate(zip(reviews or [], scores), start=1):
+                if not isinstance(r, dict):
+                    continue
+                r["score"] = score
+                text_preview = (r.get("text") or "")[:30]
+                if score is not None:
+                    top_reviews.append(r)
+                    print(f"  [리뷰 {i}] \"{text_preview}...\" → 점수: {score}")
+                else:
+                    print(f"  [리뷰 {i}] \"{text_preview}...\" → 점수 계산 실패 (기본값 사용)")
 
-        # 평균 점수 계산
-        avg_score = round(
-            sum(r["score"] for r in top_reviews_sorted) / len(top_reviews_sorted), 2
-        ) if top_reviews_sorted else 0.0
+            # 점수를 기준으로 상위 2개 리뷰 정렬
+            top_reviews_sorted = sorted(top_reviews, key=lambda r: r["score"], reverse=True)
+            place["topReviews"] = top_reviews_sorted[:2]
 
-        place["score"] = avg_score
-        scored_places.append(place)
+            # 평균 점수 계산
+            avg_score = round(
+                sum(r["score"] for r in top_reviews_sorted) / len(top_reviews_sorted), 2
+            ) if top_reviews_sorted else 0.0
 
-        print(f"  → 종합 점수: {avg_score}")
-        print(f"  → Top 리뷰:")
-        for t_idx, t in enumerate(place["topReviews"], start=1):
-            print(f"  {t_idx}. {t['text'][:50]}... (점수: {t['score']})")
+            place["score"] = avg_score
+            scored_places.append(place)
+
+            print(f"  → 종합 점수: {avg_score}")
+            print(f"  → Top 리뷰:")
+            for t_idx, t in enumerate(place["topReviews"], start=1):
+                text_preview = (t.get("text") or "")[:50] if isinstance(t, dict) else ""
+                print(f"  {t_idx}. {text_preview}... (점수: {t.get('score')})")
+    except Exception as e:
+        print(f"[ERROR] 리뷰 분석 중 실패: {e}")
 
     # 최종 결과를 점수를 기준으로 정렬
     scored_places.sort(key=lambda p: p["score"], reverse=True)
 
     print("\n==============================")
-    print("[최종 추천 장소 TOP5 점수]")
+    print("[최종 추천 장소 TOP3 점수]")
     for rank, p in enumerate(scored_places[:top_k], start=1):
-        print(f"{rank}. {p.get('name', '이름 없음')} → 종합 점수: {p['score']}")
+        text_preview = (t.get("text") or "")[:50] if isinstance(t, dict) else ""
+        print(f"  {t_idx}. {text_preview}... (점수: {t.get('score')})")
     print("==============================\n")
 
     return scored_places[:top_k]

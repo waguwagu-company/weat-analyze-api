@@ -1,5 +1,6 @@
 import httpx
 import json
+from pprint import pprint
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from app.core.config import GOOGLE_PLACES_API_KEY, GOOGLE_PLACES_API_MODE
@@ -20,25 +21,38 @@ async def fetch_nearby_place_infos(x: float, y: float, category_tags: List[str],
         # 태그를 키워드로 장소 검색
         for tag in category_tags:
             result = await call_search_nearby_places_api(latitude=x, longitude=y, radius=radius, max_results=limit, keyword=tag)
-
+            
+            print("======== Google Plcae result ========")
+            pprint(result.dict())
+            for idx, place in enumerate(result.places or []):
+                print(f"\n[Place #{idx+1}]")
+                print("id:", getattr(place, "id", None))
+                print("displayName:", getattr(place, "displayName", None))
+                if getattr(place, "displayName", None):
+                    print("  text:", getattr(place.displayName, "text", None))
+                print("formattedAddress:", getattr(place, "formattedAddress", None))
+                print("userRatingCount:", getattr(place, "userRatingCount", None))
+                print("priceLevel:", getattr(place, "priceLevel", None))
+                print("reviews:", getattr(place, "reviews", None))
+    
             for place in result.places:
                 place_info = {
-                    "placeId": place.id,
-                    "name": place.displayName.text,
-                    "address": place.formattedAddress,
-                    "ratingCount": place.userRatingCount,
-                    "priceLevel": place.priceLevel,
+                    "placeId": getattr(place, "id", None),
+                    "name": getattr(getattr(place, "displayName", None), "text", None),
+                    "address": getattr(place, "formattedAddress", None),
+                    "ratingCount": getattr(place, "userRatingCount", None),
+                    "priceLevel": getattr(place, "priceLevel", None),
                     "reviews": [],
                     "photos":[]
                 }
 
                 # 리뷰 정보 포함
-                if place.reviews:
+                if getattr(place, "reviews", None):
                     place_info["reviews"] = [
                         {
-                            "author": r.authorAttribution.displayName,
-                            "rating": r.rating,
-                            "text": r.text.text
+                            "author": getattr(getattr(r, "authorAttribution", None), "displayName", None),
+                            "rating": getattr(r, "rating", None),
+                            "text": getattr(getattr(r, "text", None), "text", None)
                         }
                         for r in place.reviews
                     ]
@@ -97,8 +111,9 @@ async def call_search_nearby_places_api (
 
     # 텍스트 검색 요청에 필요한 파라미터
     payload = {
-        "textQuery": keyword, 
-        "maxResultCount": max_results,
+        "textQuery": keyword,
+        "languageCode": "ko", 
+        "pageSize": max_results,
         "locationBias": {
             "circle": {
                 "center": {
@@ -108,12 +123,13 @@ async def call_search_nearby_places_api (
                 "radius": radius  
             }
         },
-        "rankPreference": "RELEVANCE"  # 기본순위 사용 (선호도에 따른 순위는 설정되지 않음)
+        "rankPreference": "RELEVANCE"
     }
 
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)
         response.raise_for_status()
+        
 
     return PlacesResponse(**response.json())
 

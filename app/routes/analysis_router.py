@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi import APIRouter, HTTPException
 from app.services.analysis_service import *
 from pprint import pprint
+import traceback
 
 router = APIRouter()
 
@@ -25,6 +26,7 @@ async def analyze(request_data: AIAnalysisRequest, request: Request):
 
     except Exception as e:
         print(f"[ERROR] 분석 실패: {e}")
+        traceback.print_exc 
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
