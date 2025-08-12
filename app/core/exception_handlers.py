@@ -15,6 +15,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content=ErrorResponse(
             code=ErrorCode.SERVER_ERROR.code,
-            message="예상치 못한 서버 오류가 발생했습니다."
+            message=ErrorCode.SERVER_ERROR.message
         ).model_dump()
     )

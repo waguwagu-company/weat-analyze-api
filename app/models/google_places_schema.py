@@ -2,6 +2,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+# ==== Google Place 장소 정보 조회 ====
 class DisplayName(BaseModel):
     text: Optional[str] = None
     languageCode: Optional[str] = None
@@ -41,3 +42,24 @@ class Place(BaseModel):
 
 class PlacesResponse(BaseModel):
     places: Optional[List[Place]] = None
+
+    
+    
+
+# ==== Google Place 장소 세부 정보 조회 ====
+class Photo(BaseModel):
+    height: Optional[int]
+    width: Optional[int]
+    photo_reference: Optional[str]
+    html_attributions: Optional[List[str]]
+
+
+class PlaceDetailResult(BaseModel):
+    name: Optional[str] = ""
+    photos: Optional[List[Photo]]
+
+
+class PlaceDetailResponse(BaseModel):
+    html_attributions: Optional[List[str]]
+    result: Optional[PlaceDetailResult]
+    status: Optional[str]

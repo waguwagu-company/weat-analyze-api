@@ -4,8 +4,8 @@ from pprint import pprint
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from app.core.config import GOOGLE_PLACES_API_KEY, GOOGLE_PLACES_API_MODE
-from app.models.search_nearby_places_api_response import PlacesResponse
-from app.models.place_detail_api_response import PlaceDetailResponse
+from app.models.google_places_schema import PlacesResponse
+from app.models.google_places_schema import PlaceDetailResponse
 
 """
 기준 위치(x, y)를 기반으로 주변 음식점 정보를 검색하고,
@@ -21,7 +21,8 @@ async def fetch_nearby_place_infos(x: float, y: float, category_tags: List[str],
         # 태그를 키워드로 장소 검색
         for tag in category_tags:
             result = await call_search_nearby_places_api(latitude=x, longitude=y, radius=radius, max_results=limit, keyword=tag)
-            
+    
+                        
             print("======== Google Plcae result ========")
             pprint(result.dict())
             for idx, place in enumerate(result.places or []):
@@ -34,6 +35,8 @@ async def fetch_nearby_place_infos(x: float, y: float, category_tags: List[str],
                 print("userRatingCount:", getattr(place, "userRatingCount", None))
                 print("priceLevel:", getattr(place, "priceLevel", None))
                 print("reviews:", getattr(place, "reviews", None))
+
+    
     
             for place in result.places:
                 place_info = {
