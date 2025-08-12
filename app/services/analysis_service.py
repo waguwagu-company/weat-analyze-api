@@ -2,6 +2,7 @@ from statistics import mean
 from typing import Dict, List, Tuple, Optional, Any
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
 from app.services.place_service import *
+from app.services.ai_request_service import call_clova_ai
 import re
 from collections import defaultdict
 
@@ -367,64 +368,3 @@ def convert_to_response_format(group_id: str, top_places: List[Dict[str, Any]]) 
             ]
         }
     }
-
-####
-
-
-
-
-
-import httpx
-import logging
-from app.core.config import CLOVA_API_KEY, CLOVA_API_URL
-
-log = logging.getLogger(__name__)
-
-async def call_clova_ai(prompt: str, analysis_data: str = "") -> str:
-    """
-    CLOVA Chat Completion API 호출
-    응답을 문자열로 받아서 처리
-    """
-    headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        "Authorization": f"Bearer {CLOVA_API_KEY}"
-    }
-
-    body = {
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt + "\n\n[사용자 데이터]:\n" + analysis_data
-            }
-        ],
-        "topP": 0.8,
-        "temperature": 0.7,
-        "maxTokens": 1000,
-        "repeatPenalty": 1.1,
-        "stopBefore": [],
-        "includeAiFilters": False
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            print(f"[CLOVA 요청 바디]: {body}")
-            response = await client.post(CLOVA_API_URL, headers=headers, json=body)
-            print(f"[CLOVA 응답 바디]: {response.text}")
-
-            response.raise_for_status()
-            data = response.json()
-
-            content = data.get("result", {}).get("message", {}).get("content", "")
-            if not content:
-                return "[CLOVA 응답 없음] result.message.content 비어있음"
-
-            return content.strip()
-
-    except httpx.HTTPStatusError as e:
-        log.error(f"[CLOVA HTTP 오류] {e.response.status_code} - {e.response.text}")
-        return f"[CLOVA 오류] 상태 코드 {e.response.status_code} - {e.response.text}"
-
-    except Exception as e:
-        log.exception("[CLOVA 예외]")
-        return f"[CLOVA 예외] {str(e)}"
-

@@ -1,7 +1,7 @@
 import json, logging
 from fastapi import APIRouter, HTTPException
-from app.models.ai_analysis_model import ValidationRequest, ValidationResponse
-from app.services.ai_analysis_service import request_ai_analysis
+from app.models.validation_schema import ValidationRequest, ValidationResponse
+from app.services.ai_request_service import request_ai_analysis
 from app.prompts.clova_prompt import SYSTEM_PROMPT_VALIDATION
 from app.common.responses import SuccessResponse, ErrorResponse
 from app.common.error_codes import ErrorCode
