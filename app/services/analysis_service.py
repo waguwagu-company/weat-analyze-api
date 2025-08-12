@@ -37,10 +37,10 @@ JOB_ORDER_TO_NAME = {
 }
 
 
-async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest, analysis_id: int) -> AnalysisResponse:
+async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest) -> AnalysisResponse:
     async with PipelineExecutionManager(
         pipeline_id=PIPELINE_ID,
-        analysis_id=analysis_id,
+        analysis_id=request.analysisId,
         initial_stage=0,
     ) as pipeline_tracker:
 
@@ -51,7 +51,7 @@ async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest, analy
         )
         async with PipelineJobExecutionManager(
             pipeline_job_id=PIPELINE_JOB_ID_ANALYSIS_REQUEST,
-            analysis_id=analysis_id,
+            analysis_id=request.analysisId,
             job_execution_request_data=(
                 request.model_dump() if hasattr(request, "model_dump") else request.__dict__
             ),
@@ -65,7 +65,7 @@ async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest, analy
         )
         async with PipelineJobExecutionManager(
             pipeline_job_id=PIPELINE_JOB_ID_PREPROCESSING,
-            analysis_id=analysis_id,
+            analysis_id=request.analysisId,
             job_execution_request_data={"step": "preprocessing"},
         ) as preprocessing_tracker:
             preprocessed = analyze_request_preprocessing(request)
@@ -88,7 +88,7 @@ async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest, analy
         )
         async with PipelineJobExecutionManager(
             pipeline_job_id=PIPELINE_JOB_ID_COLLECTING_DATA,
-            analysis_id=analysis_id,
+            analysis_id=request.analysisId,
             job_execution_request_data={
                 "base_x": base_x, "base_y": base_y,
                 "categoryResponse": preference_summary.categoryResponse
@@ -105,7 +105,7 @@ async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest, analy
         )
         async with PipelineJobExecutionManager(
             pipeline_job_id=PIPELINE_JOB_ID_ANALYSIS_START,
-            analysis_id=analysis_id,
+            analysis_id=request.analysisId,
             job_execution_request_data={
                 "user_condition": user_condition,
                 "placeCount": len(places),
@@ -128,7 +128,7 @@ async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest, analy
         )
         async with PipelineJobExecutionManager(
             pipeline_job_id=PIPELINE_JOB_ID_BUILD_RESULT,
-            analysis_id=analysis_id,
+            analysis_id=request.analysisId,
             job_execution_request_data={
                 "topPlaceCountBeforeImages": len(top_places),
                 "numberOfTopReviewsToKeep": NUMBER_OF_TOP_REVIEWS_TO_KEEP
