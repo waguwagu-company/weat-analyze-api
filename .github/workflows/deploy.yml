@@ -21,13 +21,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # - name: Fetch .env file from private repo
-      #   run: |
-      #     curl -H "Authorization: token ${{ secrets.PRIVATE_GH_PAT }}" \
-      #       -H "Accept: application/vnd.github.v3.raw" \
-      #       -o .env \
-      #       ${{ secrets.PRIVATE_GH }}
-
       - name: Build Docker image
         run: |
           docker build -f Dockerfile -t ${{ secrets.DOCKER_REGISTRY_URL }}/weat-analyze-api:latest .
@@ -50,16 +43,22 @@ jobs:
             -o .env \
             ${{ secrets.PRIVATE_GH }}
 
+            # 디버깅 정보
+            echo "=== .env 파일 상태 확인 ==="
+            ls -la .env
+            echo "=== .env 파일 내용 확인 ==="
+            head -5 .env
+            echo "=== 현재 디렉토리 ==="
+            pwd
+
             docker login ${{ secrets.DOCKER_REGISTRY_URL }} -u ${{ secrets.DOCKER_REGISTRY_USERNAME }} -p ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
             docker pull ${{ secrets.DOCKER_REGISTRY_URL }}/weat-analyze-api:latest
-
-
 
             docker stop weat-analyze-api || true
             docker rm weat-analyze-api || true
             docker run -d --name weat-analyze-api \
               --restart=always \
               -p 8000:8000 \
-              --env-file .env \
+              --env-file $(pwd)/.env \
               ${{ secrets.DOCKER_REGISTRY_URL }}/weat-analyze-api:latest
             docker image prune -f
