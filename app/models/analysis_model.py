@@ -43,7 +43,7 @@ class Place(BaseModel):
     score: Optional[float] = None
     topReviews: List[ReviewWithScore] = Field(default=None)
     # 임시 추가
-    analysisBasis: Optional[str] = None  # review or ai
+    analysisBasis: Optional[str] = None  # REVIEW or AI
     aiMessage: Optional[str] = None
 
 

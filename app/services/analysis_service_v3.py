@@ -41,7 +41,7 @@ JOB_ORDER_TO_NAME = {
 }
 
 
-MAX_CONCURRENCY = 5
+MAX_CONCURRENCY = 10
 
 
 
@@ -373,7 +373,7 @@ async def evaluate_places_and_rank(
         # 상위 N개와 AI 추천 후보 분리
         top_review_places = scored[:number_of_top_places_to_return]
         for p in top_review_places:
-            p.analysisBasis = "review"
+            p.analysisBasis = "REVIEW"
         
         
         remaining_places = scored[number_of_top_places_to_return:number_of_top_places_to_return + MAX_CANDIDATES_FOR_AI]
@@ -388,7 +388,7 @@ async def evaluate_places_and_rank(
             
             attach_reco_messages(scored, reco_json.get("recommendations", []))
     
-    selected_places = [p for p in scored if p.analysisBasis in ("review", "ai")]
+    selected_places = [p for p in scored if p.analysisBasis in ("REVIEW", "AI")]
 
     print("[DEBUG] Selected places:")
     for p in selected_places:
@@ -415,6 +415,7 @@ def build_reco_prompt(
         for place in candidate_places
     ]
     
+    # TODO: 추천 멘트.. 재미있게 답하도록 수정 필요
     prompt = f"""
 당신은 음식점 추천 도우미입니다. 아래 정보를 바탕으로 
 사용자의 중간 지점 인근에서 식당 1곳, 선호도가 높은 카테고리에 맞는 식당 1곳 총 2곳의 신당을 선택하세요.
@@ -453,7 +454,7 @@ def attach_reco_messages(
         msg = item.get("message", "")
         if pid in by_id and msg:
             place = by_id[pid]
-            place.analysisBasis = "ai"
+            place.analysisBasis = "AI"
             place.aiMessage = msg 
 
 
@@ -481,21 +482,38 @@ def convert_to_response_format(
     details: List[AnalysisResultDetail] = []
 
     for p in top_places:
-        # 점수가 가장 높은 리뷰 텍스트 (없으면 "")
-        top_text = p.topReviews[0].text if (p.topReviews and p.topReviews[0] and p.topReviews[0].text) else ""
-
-        # 상위 N개 리뷰 (점수+텍스트)
         basis_list: List[AnalysisBasis] = []
-        for rv in (p.topReviews[:basis_count] if p.topReviews else []):
-            if not rv.text:
-                continue
-            score_value = rv.score if isinstance(rv.score, (int, float)) else 0.0
-            basis_list.append(
-                AnalysisBasis(
-                    analysisBasisType="REVIEW",
-                    analysisBasisContent=f"[{score_value:.1f}점] {rv.text}"
+        
+        # basisType 구분 (없으면 REVIEW로 간주)
+        basis_type = getattr(p, "analysisBasis", "REVIEW")
+        print(f"{p.name} - basis_type: {basis_type}")
+        
+        if basis_type == "AI":
+            ai_msg = getattr(p, "aiMessage", "") or ""
+            top_text = ai_msg
+            if ai_msg:
+                basis_list.append(
+                    AnalysisBasis(
+                        analysisBasisType="AI",
+                        analysisBasisContent=ai_msg
+                    )
                 )
-            )
+            
+        else:
+            # 점수가 가장 높은 리뷰 텍스트 (없으면 "")
+            top_text = p.topReviews[0].text if (p.topReviews and p.topReviews[0] and p.topReviews[0].text) else ""
+
+            # 상위 N개 리뷰 (점수+텍스트)
+            for rv in (p.topReviews[:basis_count] if p.topReviews else []):
+                if not rv.text:
+                    continue
+                score_value = rv.score if isinstance(rv.score, (int, float)) else 0.0
+                basis_list.append(
+                    AnalysisBasis(
+                        analysisBasisType="REVIEW",
+                        analysisBasisContent=f"[{score_value:.1f}점] {rv.text}"
+                    )
+                )
 
         place_resp = PlaceResponse(
             placeName=p.name,
@@ -545,6 +563,9 @@ def dict_to_place(raw: dict) -> Place:
             for r in top_reviews_raw if isinstance(r, dict)
         ],
         score=raw.get("score"),
+        # 임시 추가
+        analysisBasis=raw.get("analysisBasis"),
+        aiMessage=raw.get("aiMessage"),
     )
 
 

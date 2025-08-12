@@ -20,7 +20,7 @@ async def analyze(request_data: AIAnalysisRequest, request: Request) -> Analysis
         print("-------------------------------------\n")
 
         # TODO analysis_id 가 요청 파라미터에 추가되도록해야함
-        result = await run_place_recommendation_pipeline_v3(request_data)
+        result = await run_place_recommendation_pipeline_v2(request_data)
         return result
 
     except Exception as e:
