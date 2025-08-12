@@ -43,14 +43,6 @@ jobs:
             -o .env \
             ${{ secrets.PRIVATE_GH }}
 
-            # 디버깅 정보
-            echo "=== .env 파일 상태 확인 ==="
-            ls -la .env
-            echo "=== .env 파일 내용 확인 ==="
-            head -5 .env
-            echo "=== 현재 디렉토리 ==="
-            pwd
-
             docker login ${{ secrets.DOCKER_REGISTRY_URL }} -u ${{ secrets.DOCKER_REGISTRY_USERNAME }} -p ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
             docker pull ${{ secrets.DOCKER_REGISTRY_URL }}/weat-analyze-api:latest
 
