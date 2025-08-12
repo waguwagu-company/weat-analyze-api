@@ -3,6 +3,9 @@ from app.core.config import CLOVA_API_KEY, CLOVA_API_URL
 from app.common.responses import ErrorResponse, SuccessResponse
 from app.common.error_codes import ErrorCode
 from typing import Optional
+import asyncio
+
+RETRY = 2
 
 
 async def request_ai_analysis(prompt: str, analysis_data: str) -> str:
@@ -87,3 +90,43 @@ def extract_json_from_ai_response(content: str) -> Optional[dict]:
             pass
     
     return None
+
+
+
+async def call_clova_ai_with_client(client: httpx.AsyncClient, prompt: str, analysis_data: str = "") -> str:
+    headers = {
+        "Content-Type": "application/json; charset=utf-8",
+        "Authorization": f"Bearer {CLOVA_API_KEY}"
+    }
+    body = {
+        "messages": [{"role": "user", "content": prompt + "\n\n[사용자 데이터]:\n" + analysis_data}],
+        "topP": 0.8,
+        "temperature": 0.7,
+        "maxTokens": 1000,
+        "repeatPenalty": 1.1,
+        "stopBefore": [],
+        "includeAiFilters": False
+    }
+
+    last_err = None
+    for attempt in range(RETRY + 1):
+        try:
+            res = await client.post(CLOVA_API_URL, headers=headers, json=body, timeout=30.0)
+            res.raise_for_status()
+            data = res.json()
+            return (data.get("result", {}).get("message", {}).get("content", "") or "").strip()
+        except httpx.HTTPStatusError as e:
+            last_err = e
+            # 429/5xx는 재시도, 그 외는 즉시 실패
+            if e.response.status_code not in (429, 500, 502, 503, 504) or attempt == RETRY:
+                print(f"[CLOVA HTTP 오류] {e.response.status_code} - {e.response.text}")
+                return f"[CLOVA 오류] 상태 코드 {e.response.status_code} - {e.response.text}"
+        except Exception as e:
+            last_err = e
+            if attempt == RETRY:
+                print("[CLOVA 예외]")
+                return f"[CLOVA 예외] {str(e)}"
+        # 지수 백오프
+        await asyncio.sleep(0.5 * (2 ** attempt))
+    # 여기 오면 모두 실패
+    return f"[CLOVA 예외] {str(last_err) if last_err else '알 수 없는 오류'}"
