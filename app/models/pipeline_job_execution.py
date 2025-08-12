@@ -6,7 +6,6 @@ class PipelineJobExecution(BaseModel):
     pipeline_job_execution_id: Optional[int] = None
     pipeline_job_id: int = Field(..., description="파이프라인작업식별자 (FK)")
     analysis_id: int = Field(..., description="분석식별자 (FK)")
-
     job_execution_status: Optional[str] = Field(default=None, max_length=50, description="작업진행상태")
     job_execution_start_time: Optional[datetime] = Field(default=None, description="작업시작시간")
     job_execution_end_time: Optional[datetime] = Field(default=None, description="작업종료시간")
