@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import List, Tuple, Any, Optional
+from typing import List, Tuple, Any, Optional, Dict
 from collections import defaultdict
 import re
 import logging
@@ -14,12 +14,14 @@ from app.models.analysis_model import (
     GroupPreferenceSummary, Place, ReviewWithScore,
     AnalysisResponse, AnalysisResultDetail, PlaceResponse, AnalysisBasis
 )
-from app.services.ai_request_service import call_clova_ai_with_client
+from app.services.ai_request_service import *
 
 log = logging.getLogger(__name__)
 
 NUMBER_OF_TOP_PLACES_TO_RETURN = 2        # 최종 결과에 포함할 장소 개수
 NUMBER_OF_TOP_REVIEWS_TO_KEEP = 1        # 각 장소에서 유지할 상위 리뷰 개수
+NUMBER_OF_PLACES_LIMIT = 10              # 한 카테고리당 주변 장소 검색 개수
+MAX_CANDIDATES_FOR_AI = 10               # AI 추천에 보낼 후보 식당 개수
 #NUMBER_OF_PHOTOS_TO_FETCH = 2             # 결과별로 반환할 사진 개수
 
 # 파이프라인 작업
@@ -39,7 +41,9 @@ JOB_ORDER_TO_NAME = {
 }
 
 
-MAX_CONCURRENCY = 5 
+MAX_CONCURRENCY = 5
+
+
 
 
 async def run_place_recommendation_pipeline_v3(request: AIAnalysisRequest) -> AnalysisResponse:
@@ -99,7 +103,7 @@ async def run_place_recommendation_pipeline_v3(request: AIAnalysisRequest) -> An
                 "categoryResponse": preference_summary.categoryResponse
             },
         ) as collecting_tracker:
-            raw_places = await fetch_nearby_place_infos(base_x, base_y, preference_summary.categoryResponse)
+            raw_places = await fetch_nearby_place_infos(base_x, base_y, preference_summary.categoryResponse, limit=NUMBER_OF_PLACES_LIMIT)
             places = [dict_to_place(p) for p in raw_places]
             collecting_tracker.attach_result({"placeCount": len(places)})
 
@@ -123,6 +127,9 @@ async def run_place_recommendation_pipeline_v3(request: AIAnalysisRequest) -> An
                 user_conditions=user_condition,
                 number_of_top_places_to_return=NUMBER_OF_TOP_PLACES_TO_RETURN,
                 number_of_top_reviews_to_keep=NUMBER_OF_TOP_REVIEWS_TO_KEEP,
+                base_x=base_x,
+                base_y=base_y,
+                category_response=preference_summary.categoryResponse
             )
             analysis_tracker.attach_result({"topPlaceCount": len(top_places)})
 
@@ -205,10 +212,11 @@ def build_category_prompt(category_tag_count: dict[str, CategoryVote]) -> str:
              for tag, vote in category_tag_count.items()]
     tag_lines = "\n".join(lines)
     prompt = f"""
-            다음은 사용자들이 선택한 음식 태그입니다. 아래의 데이터를 바탕으로 선호도와 비선호도를 고려하여 **2개의 태그**만 선정해 주세요:
+            다음은 사용자들이 선택한 음식 태그입니다. 아래의 데이터를 바탕으로 선호도와 비선호도를 고려하여 선호도가 높은 순으로 2개의 태그를 선정해 주세요
+            데이터:
             {tag_lines}
 
-            2개의 태그를 선택한 뒤 아무런 부연 설명 없이 세미콜론(;)으로 구분하여 보내주세요.
+            2개의 태그를 선호도가 높은 것부터 나열한 뒤 아무런 부연 설명 없이 세미콜론(;)으로 구분하여 보내주세요.
             응답 형식:
             태그명;태그명
             """
@@ -341,6 +349,9 @@ async def evaluate_places_and_rank(
     user_conditions: str,
     number_of_top_places_to_return: int = NUMBER_OF_TOP_PLACES_TO_RETURN,
     number_of_top_reviews_to_keep: int = NUMBER_OF_TOP_REVIEWS_TO_KEEP,
+    base_x: Optional[float] = None,
+    base_y: Optional[float] = None,
+    category_response: Optional[Any] = None,
 ) -> List["Place"]:
     if not places:
         return []
@@ -356,8 +367,94 @@ async def evaluate_places_and_rank(
 
         scored: List["Place"] = await asyncio.gather(*tasks, return_exceptions=False)
 
-    scored.sort(key=lambda p: (p.score or 0.0), reverse=True)
-    return scored[:number_of_top_places_to_return]
+        # 점수 기준 정렬
+        scored.sort(key=lambda p: (p.score or 0.0), reverse=True)
+        
+        # 상위 N개와 AI 추천 후보 분리
+        top_review_places = scored[:number_of_top_places_to_return]
+        for p in top_review_places:
+            p.analysisBasis = "review"
+        
+        
+        remaining_places = scored[number_of_top_places_to_return:number_of_top_places_to_return + MAX_CANDIDATES_FOR_AI]
+        
+        # 남은 후보에서 AI 추천
+        if remaining_places:
+            reco_prompt = build_reco_prompt(base_x, base_y, category_response, remaining_places)
+            reco_content = await call_clova_ai_with_client(client, reco_prompt)
+            reco_json = extract_json_from_ai_response(reco_content)
+            if not reco_json:
+                return scored[:number_of_top_places_to_return]
+            
+            attach_reco_messages(scored, reco_json.get("recommendations", []))
+    
+    selected_places = [p for p in scored if p.analysisBasis in ("review", "ai")]
+
+    print("[DEBUG] Selected places:")
+    for p in selected_places:
+        print(f"- {p.name} ({p.analysisBasis}) {p.aiMessage or ''}")
+
+    return selected_places
+
+
+def build_reco_prompt(
+    base_x: Optional[float], 
+    base_y: Optional[float],
+    category_response: Optional[Any],
+    candidate_places: List["Place"]
+) -> str:
+    
+    # places의 일부 정보만 보내기
+    candidates = [
+        {
+            "placeId": getattr(place, "placeId", None),
+            "name": getattr(place, "name", None),
+            "address": getattr(place, "address", None),
+            
+        }
+        for place in candidate_places
+    ]
+    
+    prompt = f"""
+당신은 음식점 추천 도우미입니다. 아래 정보를 바탕으로 
+사용자의 중간 지점 인근에서 식당 1곳, 선호도가 높은 카테고리에 맞는 식당 1곳 총 2곳의 신당을 선택하세요.
+그리고 각 식당을 선택한 이유에 대해 간단한 추천 멘트를 작성하세요.
+
+[중간지점]
+lat: {base_y}, lon: {base_x}
+
+[선호 카테고리]
+{json.dumps(category_response, ensure_ascii=False)}
+
+[후보 장소 목록]
+{json.dumps(candidates, ensure_ascii=False)}
+
+반환 형식은 반드시 아래 JSON만 출력하세요. 다른 설명, 코드블록, 불필요한 텍스트를 출력하지 마세요.
+{{
+  "recommendations": [
+    {{ "placeId": "PLACE_ID_1", "message": "짧고 구체적인 한 문장 추천 멘트" }},
+    {{ "placeId": "PLACE_ID_2", "message": "짧고 구체적인 한 문장 추천 멘트" }}
+  ]
+}}
+제약: 후보 목록에 존재하는 placeId만 사용하세요. 두 개만 선정하세요.
+    """
+
+    return prompt
+    
+def attach_reco_messages(
+    places: List["Place"],
+    recos: List[Dict[str, str]]
+) -> None:
+    # placeId -> Place 객체 매핑
+    by_id: Dict[str, Place] = {str(p.placeId): p for p in places if p.placeId}
+
+    for item in recos:
+        pid = str(item.get("placeId", ""))
+        msg = item.get("message", "")
+        if pid in by_id and msg:
+            place = by_id[pid]
+            place.analysisBasis = "ai"
+            place.aiMessage = msg 
 
 
 def parse_scores(response_text: str, expected_len: int) -> List[float]:

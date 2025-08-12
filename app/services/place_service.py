@@ -22,22 +22,6 @@ async def fetch_nearby_place_infos(x: float, y: float, category_tags: List[str],
         for tag in category_tags:
             result = await call_search_nearby_places_api(latitude=x, longitude=y, radius=radius, max_results=limit, keyword=tag)
     
-                        
-            print("======== Google Plcae result ========")
-            pprint(result.dict())
-            for idx, place in enumerate(result.places or []):
-                print(f"\n[Place #{idx+1}]")
-                print("id:", getattr(place, "id", None))
-                print("displayName:", getattr(place, "displayName", None))
-                if getattr(place, "displayName", None):
-                    print("  text:", getattr(place.displayName, "text", None))
-                print("formattedAddress:", getattr(place, "formattedAddress", None))
-                print("userRatingCount:", getattr(place, "userRatingCount", None))
-                print("priceLevel:", getattr(place, "priceLevel", None))
-                print("reviews:", getattr(place, "reviews", None))
-
-    
-    
             for place in result.places:
                 place_info = {
                     "placeId": getattr(place, "id", None),
