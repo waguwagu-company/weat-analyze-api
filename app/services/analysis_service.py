@@ -13,6 +13,8 @@ from collections import defaultdict
     - 선호/비선호 카테고리 데이터
     - 사용자 입력 문장 데이터
 """
+
+
 def analyze_request_preprocessing(request: AIAnalysisRequest) -> Dict:
     members = request.memberSettingList
     group_id = request.groupId
@@ -51,11 +53,13 @@ def analyze_request_preprocessing(request: AIAnalysisRequest) -> Dict:
         "inputTextSummarySource": all_input_texts
     }
 
+
 """
 AI를 활용하여 분석설정 취합 및 요약
 """
-async def summarize_group_preferences_with_ai(request: AIAnalysisRequest) -> Dict[str, str]:
 
+
+async def summarize_group_preferences_with_ai(request: AIAnalysisRequest) -> Dict[str, str]:
     # 요청 전처리
     preprocessed = analyze_request_preprocessing(request)
     print(f"요정 전처리 완료")
@@ -67,7 +71,6 @@ async def summarize_group_preferences_with_ai(request: AIAnalysisRequest) -> Dic
     print(f"Category Prompt: {category_prompt}")
     input_text_prompt = build_input_text_prompt(input_texts)
     print(f"Input Text Prompt: {input_text_prompt}")
-    
 
     # Clova에 요청
     category_response_text = await request_ai_analysis(prompt=category_prompt, analysis_data="")
@@ -89,8 +92,9 @@ Args:
 Returns:
     Tuple[float, float, bool]: (기준 x 좌표, 기준 y 좌표, 단체 여부)
 """
-def calculate_base_position(members: List[MemberSetting]) -> Tuple[float, float, bool]:
 
+
+def calculate_base_position(members: List[MemberSetting]) -> Tuple[float, float, bool]:
     is_group = len(members) > 1
 
     if is_group:
@@ -109,6 +113,8 @@ def calculate_base_position(members: List[MemberSetting]) -> Tuple[float, float,
 단체 사용자의 카테고리태그 데이터를 기반으로, 
 AI에게 카테고리태그 취합 요청을 위한 프롬프트 생성
 """
+
+
 def build_category_prompt(category_tag_count: dict) -> str:
     if not category_tag_count:
         return "사용자들이 선택한 선호/비선호 음식 태그가 없습니다."
@@ -125,7 +131,7 @@ def build_category_prompt(category_tag_count: dict) -> str:
     # 상위 2개의 선호 태그만 요청
     tag_lines = "\n".join(
         [f"- {tag['tag']} (선호: {tag['preferred']}, 비선호: {tag['non_preferred']})"
-        for tag in category_tags]
+         for tag in category_tags]
     )
 
     prompt = f"""
@@ -136,7 +142,7 @@ def build_category_prompt(category_tag_count: dict) -> str:
     응답 형식: 
     태그명;태그명
     """
-    
+
     return prompt
 
 
@@ -144,8 +150,9 @@ def build_category_prompt(category_tag_count: dict) -> str:
     여러 사용자의 비정형 입력값들을 기반으로
     AI가 하나의 조건 요약문으로 정리할 수 있도록 요청 프롬프트 생성
 """
-def build_input_text_prompt(input_texts: list[str]) -> str:
 
+
+def build_input_text_prompt(input_texts: list[str]) -> str:
     if not input_texts:
         return "사용자들이 입력한 음식점에 대한 요구 조건이 없습니다."
 
@@ -153,12 +160,11 @@ def build_input_text_prompt(input_texts: list[str]) -> str:
 
     # TODO: 프롬프트 템플릿은 분석 파이프라인 완성 후 수정 필요
     prompt = (
-        "다음은 사용자들이 음식점에 대해 요청한 조건입니다:\n"
-        + bullet_points
-        + "\n\n위 내용을 바탕으로 모두의 의견을 반영하는 하나의 문장으로 요약해주세요."
+            "다음은 사용자들이 음식점에 대해 요청한 조건입니다:\n"
+            + bullet_points
+            + "\n\n위 내용을 바탕으로 모두의 의견을 반영하는 하나의 문장으로 요약해주세요."
     )
     return prompt
-
 
 
 """
@@ -166,9 +172,11 @@ def build_input_text_prompt(input_texts: list[str]) -> str:
 Returns:
     float: 적합도 점수 (0.0~10.0) 또는 기본값 1.0
 """
+
+
 async def score_reviews_with_ai(review_texts: List[str], user_conditions: str) -> List[float]:
     reviews_prompt = "\n".join(review_texts)
-    
+
     prompt = (
         f"다음은 음식점 리뷰입니다:\n\"{reviews_prompt}\"\n\n"
         f"사용자 조건: {user_conditions}\n"
@@ -181,7 +189,7 @@ async def score_reviews_with_ai(review_texts: List[str], user_conditions: str) -
 
     response = await request_ai_analysis(prompt, "")
     print(f"클로바 응답 Content: {response}")
-    
+
     # 여러 점수를 세미콜론으로 구분하여 받기 (예: "9.5;4.0;10.0")
     scores = []
     for score_str in response.split(";"):
@@ -202,18 +210,19 @@ async def score_reviews_with_ai(review_texts: List[str], user_conditions: str) -
 """
 모든 장소에 대해 AI 기반 점수 계산 후 상위 N개 반환
 """
-async def evaluate_places_and_rank(
-    places: List[Dict[str, Any]], user_conditions: str, top_k: int = 3
-) -> List[Dict[str, Any]]:
 
+
+async def evaluate_places_and_rank(
+        places: List[Dict[str, Any]], user_conditions: str, top_k: int = 3
+) -> List[Dict[str, Any]]:
     scored_places = []
 
-    try: 
+    try:
         for idx, place in enumerate(places, start=1):
             print(f"\n[장소 {idx}] {place.get('name', '이름 없음')} 평가 시작")
             reviews = place.get("reviews", [])[:10]
             top_reviews = []
-            
+
             # ===== 리뷰 데이터 점검 =====
             if not reviews:
                 print("[DEBUG] reviews 리스트가 비어있습니다.")
@@ -223,14 +232,14 @@ async def evaluate_places_and_rank(
                         print(f"[DEBUG] 리뷰 {r_idx} 비정상 데이터(타입):", r)
                     elif r.get("text") is None:
                         print(f"[DEBUG] 리뷰 {r_idx} text 없음:", r)
-            
+
             # ===== 리뷰 텍스트 생성 (널 가드) =====
             review_texts = [
-                f"{i+1}번 리뷰: { (r.get('text') or '') }"
+                f"{i + 1}번 리뷰: {(r.get('text') or '')}"
                 for i, r in enumerate(reviews or [])
                 if isinstance(r, dict)
             ]
-            
+
             # ==== AI로 점수 계산 ====
             scores = await score_reviews_with_ai(review_texts, user_conditions)
 
@@ -278,6 +287,7 @@ async def evaluate_places_and_rank(
 
     return scored_places[:top_k]
 
+
 async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Dict[str, Any]:
     # 요약/분석
     ai_summary = await summarize_group_preferences_with_ai(request)
@@ -291,7 +301,7 @@ async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Dict[
 
     # 장소 조회
     places = await fetch_nearby_place_infos(base_x, base_y, ai_summary["categoryResponse"])
-    
+
     # 적합도 평가
     top_places = await evaluate_places_and_rank(places, user_condition)
 
@@ -301,9 +311,12 @@ async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Dict[
     response = convert_to_response_format(group_id, top_places)
     return response
 
+
 """
 API 응답 형식에 맞춰 추천 장소(top_places) 리스트 변환
 """
+
+
 def convert_to_response_format(group_id: str, top_places: List[Dict[str, Any]]) -> Dict[str, Any]:
     return {
         "groupId": group_id,

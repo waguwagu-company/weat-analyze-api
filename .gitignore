@@ -229,5 +229,9 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+# JetBrains IDE project files
+.idea
+
 # 환경변수 파일
 .env
+
