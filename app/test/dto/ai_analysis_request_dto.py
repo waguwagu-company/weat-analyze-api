@@ -17,4 +17,5 @@ class MemberSetting(BaseModel):
 
 class AIAnalysisRequest(BaseModel):
     groupId: str
+    analysisId: int
     memberSettingList: Annotated[List[MemberSetting], Field(default_factory=list)]
