@@ -1,9 +1,7 @@
 import json
-from pathlib import Path
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi import Request
 from fastapi import APIRouter, HTTPException
-from app.services.analysis_service import *
+from app.services.analysis_service_v2 import *
 from pprint import pprint
 import traceback
 
@@ -20,7 +18,8 @@ async def analyze(request_data: AIAnalysisRequest, request: Request) -> Analysis
         pprint(json.loads(await request.body()))
         print("-------------------------------------\n")
 
-        result = await run_place_recommendation_pipeline_v2(request_data, analysis_id=214)
+        # TODO analysis_id 가 요청 파라미터에 추가되도록해야함
+        result = await run_place_recommendation_pipeline_v2(request_data)
         return result
 
     except Exception as e:
