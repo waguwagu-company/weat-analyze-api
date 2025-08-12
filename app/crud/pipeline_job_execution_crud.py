@@ -1,36 +1,38 @@
 from typing import Optional, List, Dict, Any
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
+from sqlalchemy.dialects.postgresql import JSONB
 from app.db.db import SessionFactory
 from app.models.pipeline_job_execution import PipelineJobExecution
 
-
 def create_pipeline_job_execution(data: PipelineJobExecution) -> PipelineJobExecution:
+    stmt = text("""
+        INSERT INTO public.pipeline_job_execution
+            (pipeline_job_id, analysis_id, job_execution_status,
+             job_execution_start_time, job_execution_end_time, job_execution_duration,
+             job_execution_request_data, job_execution_result_data)
+        VALUES
+            (:pipeline_job_id, :analysis_id, :job_execution_status,
+             :job_execution_start_time, :job_execution_end_time, :job_execution_duration,
+             :job_execution_request_data, :job_execution_result_data)
+        RETURNING pipeline_job_execution_id, pipeline_job_id, analysis_id,
+                  job_execution_status, job_execution_start_time, job_execution_end_time,
+                  job_execution_duration, job_execution_request_data, job_execution_result_data
+    """).bindparams(
+        bindparam("job_execution_request_data", type_=JSONB),
+        bindparam("job_execution_result_data", type_=JSONB),
+    )
+
     with SessionFactory() as session:
-        result = session.execute(
-            text("""
-                INSERT INTO public.pipeline_job_execution
-                    (pipeline_job_id, analysis_id, job_execution_status,
-                     job_execution_end_time, job_execution_duration,
-                     job_execution_request_data, job_execution_result_data)
-                VALUES
-                    (:pipeline_job_id, :analysis_id, :job_execution_status,
-                     :job_execution_end_time, :job_execution_duration,
-                     :job_execution_request_data, :job_execution_result_data)
-                RETURNING pipeline_job_execution_id, pipeline_job_id, analysis_id,
-                          job_execution_status, job_execution_start_time, job_execution_end_time,
-                          job_execution_duration, job_execution_request_data, job_execution_result_data
-            """),
-            {
-                "pipeline_job_id": data.pipeline_job_id,
-                "analysis_id": data.analysis_id,
-                "job_execution_status": data.job_execution_status,
-                # start_time은 DB DEFAULT now() 사용
-                "job_execution_end_time": data.job_execution_end_time,
-                "job_execution_duration": data.job_execution_duration,
-                "job_execution_request_data": data.job_execution_request_data,
-                "job_execution_result_data": data.job_execution_result_data,
-            },
-        )
+        result = session.execute(stmt, {
+            "pipeline_job_id": data.pipeline_job_id,
+            "analysis_id": data.analysis_id,
+            "job_execution_status": data.job_execution_status,
+            "job_execution_start_time": data.job_execution_start_time,
+            "job_execution_end_time": data.job_execution_end_time,
+            "job_execution_duration": data.job_execution_duration,
+            "job_execution_request_data": data.job_execution_request_data,
+            "job_execution_result_data": data.job_execution_result_data,
+        })
         row = result.mappings().one()
         session.commit()
         return PipelineJobExecution(**row)
@@ -59,7 +61,7 @@ def get_all_pipeline_job_execution_list(
     limit: int = 100,
     offset: int = 0
 ) -> List[PipelineJobExecution]:
-    where_clauses = []
+    where_clauses: List[str] = []
     parameters: Dict[str, Any] = {"limit": limit, "offset": offset}
 
     if pipeline_job_id is not None:
@@ -129,10 +131,17 @@ def update_pipeline_job_execution(pipeline_job_execution_id: int, data: Pipeline
                job_execution_status, job_execution_start_time, job_execution_end_time,
                job_execution_duration, job_execution_request_data, job_execution_result_data
     """
+
+    stmt = text(sql)
+    if "job_execution_request_data" in fields_to_update:
+        stmt = stmt.bindparams(bindparam("job_execution_request_data", type_=JSONB))
+    if "job_execution_result_data" in fields_to_update:
+        stmt = stmt.bindparams(bindparam("job_execution_result_data", type_=JSONB))
+
     fields_to_update["pipeline_job_execution_id"] = pipeline_job_execution_id
 
     with SessionFactory() as session:
-        result = session.execute(text(sql), fields_to_update)
+        result = session.execute(stmt, fields_to_update)
         row = result.mappings().first()
         if row:
             session.commit()
