@@ -2,7 +2,7 @@ from statistics import mean
 from typing import Dict, List, Tuple, Optional, Any
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
 from app.services.place_service import *
-from app.services.ai_request_service import call_clova_ai
+from app.services.ai_request_service import request_ai_analysis
 import re
 from collections import defaultdict
 
@@ -70,8 +70,8 @@ async def summarize_group_preferences_with_ai(request: AIAnalysisRequest) -> Dic
     
 
     # Clova에 요청
-    category_response_text = await call_clova_ai(prompt=category_prompt, analysis_data="")
-    input_text_response_text = await call_clova_ai(prompt=input_text_prompt, analysis_data="")
+    category_response_text = await request_ai_analysis(prompt=category_prompt, analysis_data="")
+    input_text_response_text = await request_ai_analysis(prompt=input_text_prompt, analysis_data="")
 
     return {
         "categoryResponse": category_response_text.split(";"),
@@ -179,7 +179,7 @@ async def score_reviews_with_ai(review_texts: List[str], user_conditions: str) -
         "0.0;0.0;0.0"
     )
 
-    response = await call_clova_ai(prompt)
+    response = await request_ai_analysis(prompt)
     print(f"클로바 응답 Content: {response}")
     
     # 여러 점수를 세미콜론으로 구분하여 받기 (예: "9.5;4.0;10.0")
