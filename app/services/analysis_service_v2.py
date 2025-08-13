@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Union, Dict
 from collections import defaultdict
 import re
 import logging
@@ -78,7 +78,14 @@ async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest) -> An
                 "inputTextResponse": preference_summary.inputTextResponse,
             })
 
-        user_condition = preference_summary.inputTextResponse
+        # TODO: 테스트 필요
+        # user_condition = preference_summary.inputTextResponse
+
+        user_condition = build_user_conditions_text(
+            categories=preference_summary.categoryResponse,
+            input_text=preference_summary.inputTextResponse
+        )
+
         base_x = preprocessed.basePosition.x
         base_y = preprocessed.basePosition.y
         group_id = preprocessed.groupId
@@ -111,7 +118,7 @@ async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest) -> An
             pipeline_job_id=PIPELINE_JOB_ID_ANALYSIS_START,
             analysis_id=request.analysisId,
             job_execution_request_data={
-                "user_condition": user_condition,
+                "userCondition": user_condition,
                 "placeCount": len(places),
                 "numberOfTopPlacesToReturn": NUMBER_OF_TOP_PLACES_TO_RETURN,
                 "numberOfTopReviewsToKeep": NUMBER_OF_TOP_REVIEWS_TO_KEEP,
@@ -224,6 +231,37 @@ def build_input_text_prompt(input_texts: List[str]) -> str:
         + "\n\n위 내용을 바탕으로 모두의 의견을 반영하는 하나의 문장으로 요약해주세요."
     )
 
+
+def build_user_conditions_text(categories: Union[List[str], Dict[str, Any], None],
+                               input_text: str | None) -> str:
+    """
+    AI로 취합된 카테고리 조건과 비정형 입력 조건을 취합하여 하나의 정보로 통합
+    """
+    lines = ["[리뷰 분석조건 요약]"]
+
+    # 1) 카테고리 요약
+    if isinstance(categories, list) and categories:
+        lines.append(f"- 우선적으로 고려할 태그: {', '.join(categories)}")
+    elif isinstance(categories, dict) and (categories.get("preferred") or categories.get("disliked")):
+        pref = ", ".join(categories.get("preferred", [])) if categories.get("preferred") else ""
+        dislike = ", ".join(categories.get("disliked", [])) if categories.get("disliked") else ""
+        if pref:
+            lines.append(f"- 선호하는 음식 카테고리: {pref}")
+        if dislike:
+            lines.append(f"- 선호하지 않는 음식 카테고리: {dislike}")
+    else:
+        lines.append("- (카테고리 태그 없음)")
+
+    # 2) 비정형 입력 요약
+    input_text = (input_text or "").strip()
+    if input_text:
+        lines.append(f"- 구체적인 요구사항: {input_text}")
+    else:
+        lines.append("- 구체적인 요구사항: (없음)")
+
+    # 리뷰 평가 모델에게 친절한 마무리 힌트
+    lines.append("\n위 조건에 부합할수록 높은 점수를 주세요.")
+    return "\n".join(lines)
 
 async def summarize_group_preferences_with_ai(request: AIAnalysisRequest) -> GroupPreferenceSummary:
     preprocessed = analyze_request_preprocessing(request)
