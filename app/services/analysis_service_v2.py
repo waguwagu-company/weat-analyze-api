@@ -13,6 +13,8 @@ from app.models.analysis_model import (
     GroupPreferenceSummary, Place, ReviewWithScore,
     AnalysisResponse, AnalysisResultDetail, PlaceResponse, AnalysisBasis
 )
+from fastapi.encoders import jsonable_encoder
+
 
 log = logging.getLogger(__name__)
 
@@ -96,8 +98,10 @@ async def run_place_recommendation_pipeline_v2(request: AIAnalysisRequest) -> An
         ) as collecting_tracker:
             raw_places = await fetch_nearby_place_infos(base_x, base_y, preference_summary.categoryResponse)
             places = [dict_to_place(p) for p in raw_places]
-            collecting_tracker.attach_result({"placeCount": len(places)})
-
+            collecting_tracker.attach_result({
+                "placeCount": len(places),
+                "places": jsonable_encoder(raw_places)
+            })
         # 4. 분석 시작
         pipeline_tracker.advance_stage(
             stage=4,
