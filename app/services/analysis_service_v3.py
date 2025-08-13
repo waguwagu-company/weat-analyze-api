@@ -15,6 +15,7 @@ from app.models.analysis_model import (
     AnalysisResponse, AnalysisResultDetail, PlaceResponse, AnalysisBasis
 )
 from app.services.ai_request_service import *
+from app.models.enums import *
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ JOB_ORDER_TO_NAME = {
 }
 
 
-MAX_CONCURRENCY = 10
+MAX_CONCURRENCY = 10  # 한 번에 병렬 처리할 작업 개수
 
 
 
@@ -373,7 +374,7 @@ async def evaluate_places_and_rank(
         # 상위 N개와 AI 추천 후보 분리
         top_review_places = scored[:number_of_top_places_to_return]
         for p in top_review_places:
-            p.analysisBasis = "REVIEW"
+            p.analysisBasis = AnalysisBasisType.REVIEW
         
         
         remaining_places = scored[number_of_top_places_to_return:number_of_top_places_to_return + MAX_CANDIDATES_FOR_AI]
@@ -388,7 +389,7 @@ async def evaluate_places_and_rank(
             
             attach_reco_messages(scored, reco_json.get("recommendations", []))
     
-    selected_places = [p for p in scored if p.analysisBasis in ("REVIEW", "AI")]
+    selected_places = [p for p in scored if p.analysisBasis in (AnalysisBasisType.REVIEW, AnalysisBasisType.AI)]
 
     print("[DEBUG] Selected places:")
     for p in selected_places:
@@ -454,7 +455,7 @@ def attach_reco_messages(
         msg = item.get("message", "")
         if pid in by_id and msg:
             place = by_id[pid]
-            place.analysisBasis = "AI"
+            place.analysisBasis = AnalysisBasisType.AI
             place.aiMessage = msg 
 
 
@@ -485,16 +486,16 @@ def convert_to_response_format(
         basis_list: List[AnalysisBasis] = []
         
         # basisType 구분 (없으면 REVIEW로 간주)
-        basis_type = getattr(p, "analysisBasis", "REVIEW")
+        basis_type = getattr(p, "analysisBasis", AnalysisBasisType.REVIEW)
         print(f"{p.name} - basis_type: {basis_type}")
         
-        if basis_type == "AI":
+        if basis_type == AnalysisBasisType.AI:
             ai_msg = getattr(p, "aiMessage", "") or ""
             top_text = ai_msg
             if ai_msg:
                 basis_list.append(
                     AnalysisBasis(
-                        analysisBasisType="AI",
+                        analysisBasisType=AnalysisBasisType.AI,
                         analysisBasisContent=ai_msg
                     )
                 )
@@ -510,7 +511,7 @@ def convert_to_response_format(
                 score_value = rv.score if isinstance(rv.score, (int, float)) else 0.0
                 basis_list.append(
                     AnalysisBasis(
-                        analysisBasisType="REVIEW",
+                        analysisBasisType=AnalysisBasisType.REVIEW,
                         analysisBasisContent=f"[{score_value:.1f}점] {rv.text}"
                     )
                 )
