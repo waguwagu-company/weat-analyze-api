@@ -17,14 +17,22 @@ Returns:
 async def fetch_nearby_place_infos(x: float, y: float, category_tags: List[str], radius: float = 500.0, limit: int = 10) -> List[Dict[str, Any]]:
     try:
         places_data = []
+        seen_place_id_set = set() 
         
         # 태그를 키워드로 장소 검색
         for tag in category_tags:
             result = await call_search_nearby_places_api(latitude=x, longitude=y, radius=radius, max_results=limit, keyword=tag)
     
             for place in result.places:
+                place_id = getattr(place, "id", None)
+
+                if not place_id or place_id in seen_place_id_set:
+                    continue
+                
+                seen_place_id_set.add(place_id)
+                
                 place_info = {
-                    "placeId": getattr(place, "id", None),
+                    "placeId": place_id,
                     "name": getattr(getattr(place, "displayName", None), "text", None),
                     "address": getattr(place, "formattedAddress", None),
                     "ratingCount": getattr(place, "userRatingCount", None),
