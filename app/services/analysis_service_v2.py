@@ -181,7 +181,7 @@ def analyze_request_preprocessing(request: AIAnalysisRequest) -> PreprocessResul
             tag_counter[category.categoryTagName] = vote
 
     # 비정형 입력 설정 취합
-    input_texts = [m.inputText for m in members if m.inputText]
+    input_texts = [m.inputText.strip() for m in members if m.inputText and m.inputText.strip()]
 
     return PreprocessResult(
         groupId=group_id,
@@ -259,17 +259,21 @@ def build_user_conditions_text(categories: Union[List[str], Dict[str, Any], None
     else:
         lines.append("- 구체적인 요구사항: (없음)")
 
-    # 리뷰 평가 모델에게 친절한 마무리 힌트
     lines.append("\n위 조건에 부합할수록 높은 점수를 주세요.")
     return "\n".join(lines)
 
 async def summarize_group_preferences_with_ai(request: AIAnalysisRequest) -> GroupPreferenceSummary:
     preprocessed = analyze_request_preprocessing(request)
     category_prompt = build_category_prompt(preprocessed.categoryPreference)
-    input_text_prompt = build_input_text_prompt(preprocessed.inputTextSummarySource)
+    
+    # 비정형 입력이 없으면 AI 요약 건너뛰기
+    if not preprocessed.inputTextSummarySource:
+        input_text_response_text = "없음"
+    else:
+        input_text_prompt = build_input_text_prompt(preprocessed.inputTextSummarySource)
+        input_text_response_text = await call_clova_ai(prompt=input_text_prompt, analysis_data="")
 
     category_response_text = await call_clova_ai(prompt=category_prompt, analysis_data="")
-    input_text_response_text = await call_clova_ai(prompt=input_text_prompt, analysis_data="")
 
     categories = [c.strip() for c in (category_response_text or "").split(";") if c.strip()]
     return GroupPreferenceSummary(
