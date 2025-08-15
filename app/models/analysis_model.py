@@ -42,7 +42,6 @@ class Place(BaseModel):
     photos: List[str] = Field(default=None)
     score: Optional[float] = None
     topReviews: List[ReviewWithScore] = Field(default=None)
-    # 임시 추가
     analysisBasis: Optional[str] = None  # REVIEW or AI
     aiMessage: Optional[str] = None
 

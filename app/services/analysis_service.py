@@ -425,7 +425,7 @@ def build_reco_prompt(
     prompt = f"""
 당신은 음식점 추천 도우미입니다. 아래 정보를 바탕으로 
 사용자의 중간 지점 인근에서 식당 1곳, 선호도가 높은 카테고리에 맞는 식당 1곳 총 2곳의 신당을 선택하세요.
-그리고 각 식당을 선택한 이유에 대해 간단한 추천 멘트를 작성하세요.
+그리고 각 식당을 선택한 이유를 포함해 간단한 추천 멘트를 논리적이면서도 재치있게 작성해주세요.
 
 [중간지점]
 lat: {base_y}, lon: {base_x}
@@ -439,8 +439,8 @@ lat: {base_y}, lon: {base_x}
 반환 형식은 반드시 아래 JSON만 출력하세요. 다른 설명, 코드블록, 불필요한 텍스트를 출력하지 마세요.
 {{
   "recommendations": [
-    {{ "placeId": "PLACE_ID_1", "message": "짧고 구체적인 한 문장 추천 멘트" }},
-    {{ "placeId": "PLACE_ID_2", "message": "짧고 구체적인 한 문장 추천 멘트" }}
+    {{ "placeId": "PLACE_ID_1", "message": "짧고 구체적인 한 문장 추천 멘트 (~해요체)" }},
+    {{ "placeId": "PLACE_ID_2", "message": "짧고 구체적인 한 문장 추천 멘트 (~해요체)" }}
   ]
 }}
 제약: 후보 목록에 존재하는 placeId만 사용하세요. 두 개만 선정하세요.
@@ -494,6 +494,7 @@ def convert_to_response_format(
         basis_type = getattr(p, "analysisBasis", AnalysisBasisType.REVIEW)
         print(f"{p.name} - basis_type: {basis_type}")
         
+        # TODO: AI도 자체적으로 3~5점 사이의 점수 주도록 프롬프트 및 응답 처리 수정 필요 
         if basis_type == AnalysisBasisType.AI:
             ai_msg = getattr(p, "aiMessage", "") or ""
             top_text = ai_msg
@@ -521,7 +522,7 @@ def convert_to_response_format(
                 basis_list.append(
                     AnalysisBasis(
                         analysisBasisType=AnalysisBasisType.REVIEW,
-                        analysisBasisContent=f"[{score_value:.1f}점] {rv.text}",
+                        analysisBasisContent=rv.text,
                         analysisScore=rating_5pt
                     )
                 )
