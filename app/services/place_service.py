@@ -1,11 +1,15 @@
 import httpx
 import json
+import math
 from pprint import pprint
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from app.core.config import GOOGLE_PLACES_API_KEY, GOOGLE_PLACES_API_MODE
 from app.models.google_places_schema import PlacesResponse
 from app.models.google_places_schema import PlaceDetailResponse
+
+
+
 
 """
 기준 위치(x, y)를 기반으로 주변 음식점 정보를 검색하고,
@@ -60,10 +64,32 @@ async def fetch_nearby_place_infos(x: float, y: float, category_tags: List[str],
         print(f"[장소 조회 오류] {e}")
         return []
 
+
+"""
+ 중심 좌표기준 반경 n 미터 BBOX 연산
+"""
+def calculate_bbox(lat: float, lot: float, radius: float):
+
+    # bbox 산출시 설정 반경 2배로 재조정
+    resized_radius = 2 * radius
+
+    R = 6378137.0  # WGS84 좌표계
+    lat_rad = math.radians(lat)
+
+    # 위도
+    lat_min = lat - math.degrees(resized_radius / R)
+    lat_max = lat + math.degrees(resized_radius / R)
+
+    # 경도
+    lon_min = lot - math.degrees(resized_radius / R * math.cos(lat_rad))
+    lon_max = lot + math.degrees(resized_radius / R * math.cos(lat_rad))
+    return lat_min, lon_min, lat_max, lon_max
+
+
 """
  특정 좌표/주소 기준 인근 장소 조회
 """
-async def call_search_nearby_places_api (
+async def call_search_nearby_places_api(
         latitude: float,
         longitude: float,
         radius: float = 500.0,
@@ -75,13 +101,9 @@ async def call_search_nearby_places_api (
 
     if mode.lower() == "mock":
         print("* 테스트 모드(mock json 응답 사용)")
-
-        # 현재 파일(app/api/places_api.py 등) 기준 상위 디렉터리로부터 mock 경로 설정
         base_dir = Path(__file__).resolve().parent.parent  # app/
         json_path = Path(test_json_path) if test_json_path else base_dir / "mock" / "place_api_response.json"
-
         print(f"[DEBUG] Mock JSON 경로: {json_path}")
-
         if not json_path.exists():
             raise FileNotFoundError(f"테스트 응답 파일이 존재하지 않습니다: {json_path}")
         with open(json_path, "r", encoding="utf-8") as f:
@@ -99,23 +121,21 @@ async def call_search_nearby_places_api (
             "places.userRatingCount",
             "places.priceLevel",
             "places.reviews",
-            "places.formattedAddress"
+            "places.formattedAddress",
         ]),
         "Accept-Language": "ko"
     }
 
-    # 텍스트 검색 요청에 필요한 파라미터
+    lat_min, lot_min, lat_max, lot_max = calculate_bbox(latitude, longitude, radius)
+
     payload = {
         "textQuery": keyword,
-        "languageCode": "ko", 
+        "languageCode": "ko",
         "pageSize": max_results,
-        "locationBias": {
-            "circle": {
-                "center": {
-                    "latitude": latitude, 
-                    "longitude": longitude 
-                },
-                "radius": radius  
+        "locationRestriction": {
+            "rectangle": {
+                "low":  { "latitude": lat_min, "longitude": lot_min },
+                "high": { "latitude": lat_max, "longitude": lot_max }
             }
         },
         "rankPreference": "RELEVANCE"
@@ -124,7 +144,6 @@ async def call_search_nearby_places_api (
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=payload)
         response.raise_for_status()
-        
 
     return PlacesResponse(**response.json())
 
