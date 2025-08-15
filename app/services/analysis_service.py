@@ -1,6 +1,8 @@
 from statistics import mean
 from typing import List, Tuple, Any, Optional, Dict, Union
 from collections import defaultdict
+
+from app.models.ai_message_template_model import AIMessageTemplate
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
 from app.services.place_service import fetch_nearby_place_infos, fetch_place_images
 from app.services.pipeline_service import PipelineJobExecutionManager, PipelineExecutionManager
@@ -9,9 +11,12 @@ from app.models.analysis_model import (
     GroupPreferenceSummary, Place, ReviewWithScore,
     AnalysisResponse, AnalysisResultDetail, PlaceResponse, AnalysisBasis
 )
+from collections.abc import Mapping
 from app.services.ai_request_service import *
 from app.models.enums import *
 from fastapi.encoders import jsonable_encoder
+import random
+from app.crud.ai_message_template_crud import get_ai_message_templates_by_basis_type
 
 log = logging.getLogger(__name__)
 
@@ -487,14 +492,19 @@ def convert_to_response_format(
 ) -> AnalysisResponse:
     details: List[AnalysisResultDetail] = []
 
+    review_templates = get_ai_message_templates_by_basis_type("REVIEW")
+    ai_templates     = get_ai_message_templates_by_basis_type("AI")
+
     for p in top_places:
         basis_list: List[AnalysisBasis] = []
         
         # basisType 구분 (없으면 REVIEW로 간주)
+
         basis_type = getattr(p, "analysisBasis", AnalysisBasisType.REVIEW)
         print(f"{p.name} - basis_type: {basis_type}")
         
         # TODO: AI도 자체적으로 3~5점 사이의 점수 주도록 프롬프트 및 응답 처리 수정 필요 
+
         if basis_type == AnalysisBasisType.AI:
             ai_msg = getattr(p, "aiMessage", "") or ""
             top_text = ai_msg
@@ -507,6 +517,7 @@ def convert_to_response_format(
                     )
                 )
             
+            candidate_templates = ai_templates
         else:
             # 점수가 가장 높은 리뷰 텍스트 (없으면 "")
             top_text = p.topReviews[0].text if (p.topReviews and p.topReviews[0] and p.topReviews[0].text) else ""
@@ -526,6 +537,15 @@ def convert_to_response_format(
                         analysisScore=rating_5pt
                     )
                 )
+            candidate_templates = review_templates
+        template_message = None
+        if candidate_templates:
+            chosen = random.choice(candidate_templates)
+
+            if isinstance(chosen, AIMessageTemplate):
+                template_message = chosen.ai_message_template_content
+            else:
+                template_message = ""
 
         place_resp = PlaceResponse(
             placeName=p.name,
@@ -536,8 +556,9 @@ def convert_to_response_format(
         details.append(
             AnalysisResultDetail(
                 place=place_resp,
-                analysisResultDetailContent=top_text,   # 리뷰 중 가장 점수가 높은 리뷰
-                analysisBasisList=basis_list            # 상위 N개 리뷰(점수 포함)
+                analysisResultDetailContent=top_text,
+                analysisBasisList=basis_list,
+                analysisResultDetailTemplateMessage=template_message,
             )
         )
 

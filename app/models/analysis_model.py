@@ -62,6 +62,7 @@ class AnalysisResultDetail(BaseModel):
     place: PlaceResponse
     analysisResultDetailContent: str
     analysisBasisList: List[AnalysisBasis]
+    analysisResultDetailTemplateMessage: Optional[str] = None
 
 
 class AnalysisResponse(BaseModel):
