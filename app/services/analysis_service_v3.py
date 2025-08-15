@@ -496,7 +496,8 @@ def convert_to_response_format(
                 basis_list.append(
                     AnalysisBasis(
                         analysisBasisType=AnalysisBasisType.AI,
-                        analysisBasisContent=ai_msg
+                        analysisBasisContent=ai_msg,
+                        analysisScore=3
                     )
                 )
             
@@ -508,11 +509,15 @@ def convert_to_response_format(
             for rv in (p.topReviews[:basis_count] if p.topReviews else []):
                 if not rv.text:
                     continue
+                
                 score_value = rv.score if isinstance(rv.score, (int, float)) else 0.0
+                rating_5pt = int(round(score_value / 2))
+                
                 basis_list.append(
                     AnalysisBasis(
                         analysisBasisType=AnalysisBasisType.REVIEW,
-                        analysisBasisContent=f"[{score_value:.1f}점] {rv.text}"
+                        analysisBasisContent=f"[{score_value:.1f}점] {rv.text}",
+                        analysisScore=rating_5pt
                     )
                 )
 

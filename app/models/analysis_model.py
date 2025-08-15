@@ -50,6 +50,7 @@ class Place(BaseModel):
 class AnalysisBasis(BaseModel):
     analysisBasisType: str
     analysisBasisContent: str
+    analysisScore: int
 
 
 class PlaceResponse(BaseModel):
