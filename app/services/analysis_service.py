@@ -311,7 +311,7 @@ async def score_single_place(place: "Place", user_conditions: str, client: httpx
         )
 
         response = await call_clova_ai_with_client(client, prompt)
-        scores = parse_scores(response, expected_len=len(reviews))
+        scores = parse_scores_from_text(response, expected_len=len(reviews))
 
         # 점수 합치기
         top_reviews: List["ReviewWithScore"] = []
@@ -394,6 +394,7 @@ async def evaluate_places_and_rank(
             reco_prompt = build_reco_prompt(base_x, base_y, category_response, remaining_places)
             reco_content = await call_clova_ai_with_client(client, reco_prompt)
             reco_json = extract_json_from_ai_response(reco_content)
+            print(f"reco_json: {reco_json}")
             if not reco_json:
                 return scored[:number_of_top_places_to_return]
             
@@ -426,11 +427,10 @@ def build_reco_prompt(
         for place in candidate_places
     ]
     
-    # TODO: 추천 멘트.. 재미있게 답하도록 수정 필요
     prompt = f"""
 당신은 음식점 추천 도우미입니다. 아래 정보를 바탕으로 
 사용자의 중간 지점 인근에서 식당 1곳, 선호도가 높은 카테고리에 맞는 식당 1곳 총 2곳의 신당을 선택하세요.
-그리고 각 식당을 선택한 이유를 포함해 간단한 추천 멘트를 논리적이면서도 재치있게 작성해주세요.
+그리고 각 식당의 점수를 6~10점사이로 평가하고 간단한 추천 멘트를 논리적이면서도 재치있게 작성해주세요.
 
 [중간지점]
 lat: {base_y}, lon: {base_x}
@@ -442,10 +442,11 @@ lat: {base_y}, lon: {base_x}
 {json.dumps(candidates, ensure_ascii=False)}
 
 반환 형식은 반드시 아래 JSON만 출력하세요. 다른 설명, 코드블록, 불필요한 텍스트를 출력하지 마세요.
+socre의 경우 6~10 사이 정수형 숫자로 출력하세요.
 {{
   "recommendations": [
-    {{ "placeId": "PLACE_ID_1", "message": "짧고 구체적인 한 문장 추천 멘트 (~해요체)" }},
-    {{ "placeId": "PLACE_ID_2", "message": "짧고 구체적인 한 문장 추천 멘트 (~해요체)" }}
+    {{ "placeId": "PLACE_ID_1", "score": 8, "message": "짧고 구체적인 한 문장 추천 멘트 (~해요체)" }},
+    {{ "placeId": "PLACE_ID_2", "score": 9, "message": "짧고 구체적인 한 문장 추천 멘트 (~해요체)" }}
   ]
 }}
 제약: 후보 목록에 존재하는 placeId만 사용하세요. 두 개만 선정하세요.
@@ -463,13 +464,37 @@ def attach_reco_messages(
     for item in recos:
         pid = str(item.get("placeId", ""))
         msg = item.get("message", "")
+        raw_score = item.get("score")
+        print(f"pid: {pid}, msg: {msg}, score: {raw_score}")
         if pid in by_id and msg:
             place = by_id[pid]
             place.analysisBasis = AnalysisBasisType.AI
+            place.score=parse_score_to_float(raw_score)
             place.aiMessage = msg 
+            
+            
+def parse_score_to_float(raw: Any, default: float = 8.0) -> float:
+    """6~10 범위의 float로 정규화. int/float/str 모두 처리"""
+    if raw is None:
+        return float(default)
+    if isinstance(raw, (int, float)):
+        val = float(raw)
+    elif isinstance(raw, str):
+        s = raw.strip()
+        m = re.search(r'(\d+(?:\.\d+)?)', s) 
+        if not m:
+            return float(default)
+        val = float(m.group(1))
+    else:
+        return float(default)
+
+    # 6~10 범위로 보정
+    if val < 6.0:  val = 6.0
+    if val > 10.0: val = 10.0
+    return val
 
 
-def parse_scores(response_text: str, expected_len: int) -> List[float]:
+def parse_scores_from_text(response_text: str, expected_len: int) -> List[float]:
     scores: List[float] = []
     for token in (response_text or "").split(";"):
         m = re.search(r'\b(10(?:\.0)?|[0-9](?:\.[0-9])?)\b', token)
@@ -498,12 +523,13 @@ def convert_to_response_format(
     for p in top_places:
         basis_list: List[AnalysisBasis] = []
         
+        # 식당 평균 점수 -> 5점 만점 정수로 변환
+        score_10 = getattr(p, "score", 8.0)
+        analysis_score = int(round(score_10 / 2))
+        
         # basisType 구분 (없으면 REVIEW로 간주)
-
         basis_type = getattr(p, "analysisBasis", AnalysisBasisType.REVIEW)
         print(f"{p.name} - basis_type: {basis_type}")
-        
-        # TODO: AI도 자체적으로 3~5점 사이의 점수 주도록 프롬프트 및 응답 처리 수정 필요 
 
         if basis_type == AnalysisBasisType.AI:
             ai_msg = getattr(p, "aiMessage", "") or ""
@@ -513,7 +539,7 @@ def convert_to_response_format(
                     AnalysisBasis(
                         analysisBasisType=AnalysisBasisType.AI,
                         analysisBasisContent=ai_msg,
-                        analysisScore=3
+                        analysisScore=analysis_score
                     )
                 )
             
@@ -527,14 +553,11 @@ def convert_to_response_format(
                 if not rv.text:
                     continue
                 
-                score_value = rv.score if isinstance(rv.score, (int, float)) else 0.0
-                rating_5pt = int(round(score_value / 2))
-                
                 basis_list.append(
                     AnalysisBasis(
                         analysisBasisType=AnalysisBasisType.REVIEW,
                         analysisBasisContent=rv.text,
-                        analysisScore=rating_5pt
+                        analysisScore=analysis_score
                     )
                 )
             candidate_templates = review_templates
