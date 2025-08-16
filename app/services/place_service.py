@@ -9,7 +9,7 @@ from app.models.google_places_schema import PlacesResponse
 from app.models.google_places_schema import PlaceDetailResponse
 
 
-
+NUMBER_OF_PHOTOS_TO_FETCH = 1             # 결과별로 반환할 사진 개수
 
 """
 기준 위치(x, y)를 기반으로 주변 음식점 정보를 검색하고,
@@ -280,7 +280,7 @@ async def fetch_place_images(top_places: List[Dict[str, Any]]) -> List[Dict[str,
             if place_detail.result and place_detail.result.photos:
                 photos_url = []
                 # 개발 단계에서는 사진 2개만 가져오기
-                for i, photo in enumerate(place_detail.result.photos[:2]):
+                for i, photo in enumerate(place_detail.result.photos[:NUMBER_OF_PHOTOS_TO_FETCH]):
                     photo_reference = photo.photo_reference
                     print(f"photo_reference: {photo_reference}")
                     

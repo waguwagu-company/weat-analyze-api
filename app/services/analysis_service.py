@@ -394,7 +394,6 @@ async def evaluate_places_and_rank(
             reco_prompt = build_reco_prompt(base_x, base_y, category_response, remaining_places)
             reco_content = await call_clova_ai_with_client(client, reco_prompt)
             reco_json = extract_json_from_ai_response(reco_content)
-            print(f"reco_json: {reco_json}")
             if not reco_json:
                 return scored[:number_of_top_places_to_return]
             
@@ -465,7 +464,7 @@ def attach_reco_messages(
         pid = str(item.get("placeId", ""))
         msg = item.get("message", "")
         raw_score = item.get("score")
-        print(f"pid: {pid}, msg: {msg}, score: {raw_score}")
+
         if pid in by_id and msg:
             place = by_id[pid]
             place.analysisBasis = AnalysisBasisType.AI
