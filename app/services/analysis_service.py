@@ -159,7 +159,8 @@ async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Analy
             response = convert_to_response_format(
                 group_id,
                 top_places,
-                basis_count=NUMBER_OF_TOP_REVIEWS_TO_KEEP
+                basis_count=NUMBER_OF_TOP_REVIEWS_TO_KEEP,
+                category_response=preference_summary.categoryResponse
             )
             build_result_tracker.attach_result({
                 "topPlaceCountAfterImages": len(top_places),
@@ -362,7 +363,7 @@ async def evaluate_places_and_rank(
     number_of_top_reviews_to_keep: int = NUMBER_OF_TOP_REVIEWS_TO_KEEP,
     base_x: Optional[float] = None,
     base_y: Optional[float] = None,
-    category_response: Optional[Any] = None,
+    category_response: List[str] = None,
 ) -> List["Place"]:
     if not places:
         return []
@@ -411,7 +412,7 @@ async def evaluate_places_and_rank(
 def build_reco_prompt(
     base_x: Optional[float], 
     base_y: Optional[float],
-    category_response: Optional[Any],
+    category_response: List[str],
     candidate_places: List["Place"]
 ) -> str:
     
@@ -429,7 +430,7 @@ def build_reco_prompt(
     prompt = f"""
 당신은 음식점 추천 도우미입니다. 아래 정보를 바탕으로 
 사용자의 중간 지점 인근에서 식당 1곳, 선호도가 높은 카테고리에 맞는 식당 1곳 총 2곳의 신당을 선택하세요.
-그리고 각 식당의 점수를 6~10점사이로 평가하고 간단한 추천 멘트를 논리적이면서도 재치있게 작성해주세요.
+그리고 각 식당의 점수를 6~10점 사이로 평가하고 간단한 추천 멘트를 논리적이면서도 재치있게 작성해주세요.
 
 [중간지점]
 lat: {base_y}, lon: {base_x}
@@ -512,19 +513,20 @@ def parse_scores_from_text(response_text: str, expected_len: int) -> List[float]
 def convert_to_response_format(
     group_id: str,
     top_places: List[Place],
-    basis_count: int = NUMBER_OF_TOP_REVIEWS_TO_KEEP
+    basis_count: int = NUMBER_OF_TOP_REVIEWS_TO_KEEP,
+    category_response: List[str] = None
 ) -> AnalysisResponse:
     details: List[AnalysisResultDetail] = []
 
-    review_templates = get_ai_message_templates_by_basis_type("REVIEW")
-    ai_templates     = get_ai_message_templates_by_basis_type("AI")
+    # review_templates = get_ai_message_templates_by_basis_type("REVIEW")
+    # ai_templates     = get_ai_message_templates_by_basis_type("AI")
 
     for p in top_places:
         basis_list: List[AnalysisBasis] = []
         
-        # 식당 평균 점수 -> 5점 만점 정수로 변환
+        # 식당 평균 분석 점수 -> 백분율 단위로 변환
         score_10 = getattr(p, "score", 8.0)
-        analysis_score = int(round(score_10 / 2))
+        analysis_score = int(score_10 * 10)
         
         # basisType 구분 (없으면 REVIEW로 간주)
         basis_type = getattr(p, "analysisBasis", AnalysisBasisType.REVIEW)
@@ -542,7 +544,7 @@ def convert_to_response_format(
                     )
                 )
             
-            candidate_templates = ai_templates
+            # candidate_templates = ai_templates
         else:
             # 점수가 가장 높은 리뷰 텍스트 (없으면 "")
             top_text = p.topReviews[0].text if (p.topReviews and p.topReviews[0] and p.topReviews[0].text) else ""
@@ -559,15 +561,15 @@ def convert_to_response_format(
                         analysisScore=analysis_score
                     )
                 )
-            candidate_templates = review_templates
-        template_message = None
-        if candidate_templates:
-            chosen = random.choice(candidate_templates)
+            # candidate_templates = review_templates
+        # template_message = None
+        # if candidate_templates:
+        #     chosen = random.choice(candidate_templates)
 
-            if isinstance(chosen, AIMessageTemplate):
-                template_message = chosen.ai_message_template_content
-            else:
-                template_message = ""
+        #     if isinstance(chosen, AIMessageTemplate):
+        #         template_message = chosen.ai_message_template_content
+        #     else:
+        #         template_message = ""
 
         place_resp = PlaceResponse(
             placeName=p.name,
@@ -581,7 +583,8 @@ def convert_to_response_format(
                 place=place_resp,
                 analysisResultDetailContent=top_text,
                 analysisBasisList=basis_list,
-                analysisResultDetailTemplateMessage=template_message,
+                analysisResultKeywords=category_response,
+                # analysisResultDetailTemplateMessage=template_message,
             )
         )
 
@@ -620,7 +623,6 @@ def dict_to_place(raw: dict) -> Place:
             for r in top_reviews_raw if isinstance(r, dict)
         ],
         score=raw.get("score"),
-        # 임시 추가
         analysisBasis=raw.get("analysisBasis"),
         aiMessage=raw.get("aiMessage"),
     )
