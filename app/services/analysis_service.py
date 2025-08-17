@@ -159,7 +159,8 @@ async def run_place_recommendation_pipeline(request: AIAnalysisRequest) -> Analy
             response = convert_to_response_format(
                 group_id,
                 top_places,
-                basis_count=NUMBER_OF_TOP_REVIEWS_TO_KEEP
+                basis_count=NUMBER_OF_TOP_REVIEWS_TO_KEEP,
+                category_response=preference_summary.categoryResponse
             )
             build_result_tracker.attach_result({
                 "topPlaceCountAfterImages": len(top_places),
@@ -362,7 +363,7 @@ async def evaluate_places_and_rank(
     number_of_top_reviews_to_keep: int = NUMBER_OF_TOP_REVIEWS_TO_KEEP,
     base_x: Optional[float] = None,
     base_y: Optional[float] = None,
-    category_response: Optional[Any] = None,
+    category_response: List[str] = None,
 ) -> List["Place"]:
     if not places:
         return []
@@ -411,7 +412,7 @@ async def evaluate_places_and_rank(
 def build_reco_prompt(
     base_x: Optional[float], 
     base_y: Optional[float],
-    category_response: Optional[Any],
+    category_response: List[str],
     candidate_places: List["Place"]
 ) -> str:
     
@@ -512,7 +513,8 @@ def parse_scores_from_text(response_text: str, expected_len: int) -> List[float]
 def convert_to_response_format(
     group_id: str,
     top_places: List[Place],
-    basis_count: int = NUMBER_OF_TOP_REVIEWS_TO_KEEP
+    basis_count: int = NUMBER_OF_TOP_REVIEWS_TO_KEEP,
+    category_response: List[str] = None
 ) -> AnalysisResponse:
     details: List[AnalysisResultDetail] = []
 
@@ -580,6 +582,7 @@ def convert_to_response_format(
                 place=place_resp,
                 analysisResultDetailContent=top_text,
                 analysisBasisList=basis_list,
+                analysisResultKeywords=category_response,
                 analysisResultDetailTemplateMessage=template_message,
             )
         )
