@@ -38,7 +38,7 @@ class Place(BaseModel):
     placeId: Optional[str] = None
     name: Optional[str] = None
     address: Optional[str] = None
-    placeUri: Optional[str] = None
+    placeUrl: Optional[str] = None
     reviews: List[ReviewWithScore] = Field(default=None)
     photos: List[str] = Field(default=None)
     score: Optional[float] = None
@@ -55,7 +55,7 @@ class AnalysisBasis(BaseModel):
 
 class PlaceResponse(BaseModel):
     placeName: Optional[str] = None
-    placeUri: Optional[str] = None
+    placeUrl: Optional[str] = None
     placeRoadNameAddress: Optional[str] = None
     placeImageList: List[Dict[str, str]] = Field(default=None)
 

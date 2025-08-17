@@ -54,7 +54,7 @@ async def fetch_nearby_place_infos(
                     "address": getattr(place, "formattedAddress", None),
                     "ratingCount": getattr(place, "userRatingCount", None),
                     "priceLevel": getattr(place, "priceLevel", None),
-                    "placeUri": getattr(place, "googleMapsUri", None),
+                    "placeUrl": getattr(place, "googleMapsUri", None),
                     "reviews": [],
                     "photos": []  # 사진 미포함 정책 유지
                 }
@@ -99,7 +99,7 @@ async def fetch_nearby_place_infos(
                     "address": getattr(place, "formattedAddress", None),
                     "ratingCount": getattr(place, "userRatingCount", None),
                     "priceLevel": getattr(place, "priceLevel", None),
-                    "placeUri": getattr(place, "googleMapsUri", None),
+                    "placeUrl": getattr(place, "googleMapsUri", None),
                     "reviews": [],
                     "photos": []
                 }

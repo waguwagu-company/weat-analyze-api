@@ -573,7 +573,7 @@ def convert_to_response_format(
 
         place_resp = PlaceResponse(
             placeName=p.name,
-            placeUri=p.placeUri,
+            placeUrl=p.placeUrl,
             placeRoadNameAddress=p.address,
             placeImageList=[{"placeImageUrl": url} for url in (p.photos or [])]
         )
@@ -602,7 +602,7 @@ def dict_to_place(raw: dict) -> Place:
         placeId=raw.get("placeId"),
         name=raw.get("name"),
         address=raw.get("address"),
-        placeUri=raw.get("placeUri", None),
+        placeUrl=raw.get("placeUrl", None),
         photos=raw.get("photos", []),
         # 원본 리뷰
         reviews=[
