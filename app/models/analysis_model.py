@@ -63,7 +63,7 @@ class AnalysisResultDetail(BaseModel):
     analysisResultDetailContent: str
     analysisResultKeywords: List[str]
     analysisBasisList: List[AnalysisBasis]
-    analysisResultDetailTemplateMessage: Optional[str] = None
+    # analysisResultDetailTemplateMessage: Optional[str] = None
 
 
 class AnalysisResponse(BaseModel):

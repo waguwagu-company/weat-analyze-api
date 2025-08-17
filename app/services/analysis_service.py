@@ -518,8 +518,8 @@ def convert_to_response_format(
 ) -> AnalysisResponse:
     details: List[AnalysisResultDetail] = []
 
-    review_templates = get_ai_message_templates_by_basis_type("REVIEW")
-    ai_templates     = get_ai_message_templates_by_basis_type("AI")
+    # review_templates = get_ai_message_templates_by_basis_type("REVIEW")
+    # ai_templates     = get_ai_message_templates_by_basis_type("AI")
 
     for p in top_places:
         basis_list: List[AnalysisBasis] = []
@@ -544,7 +544,7 @@ def convert_to_response_format(
                     )
                 )
             
-            candidate_templates = ai_templates
+            # candidate_templates = ai_templates
         else:
             # 점수가 가장 높은 리뷰 텍스트 (없으면 "")
             top_text = p.topReviews[0].text if (p.topReviews and p.topReviews[0] and p.topReviews[0].text) else ""
@@ -561,15 +561,15 @@ def convert_to_response_format(
                         analysisScore=analysis_score
                     )
                 )
-            candidate_templates = review_templates
-        template_message = None
-        if candidate_templates:
-            chosen = random.choice(candidate_templates)
+            # candidate_templates = review_templates
+        # template_message = None
+        # if candidate_templates:
+        #     chosen = random.choice(candidate_templates)
 
-            if isinstance(chosen, AIMessageTemplate):
-                template_message = chosen.ai_message_template_content
-            else:
-                template_message = ""
+        #     if isinstance(chosen, AIMessageTemplate):
+        #         template_message = chosen.ai_message_template_content
+        #     else:
+        #         template_message = ""
 
         place_resp = PlaceResponse(
             placeName=p.name,
@@ -583,7 +583,7 @@ def convert_to_response_format(
                 analysisResultDetailContent=top_text,
                 analysisBasisList=basis_list,
                 analysisResultKeywords=category_response,
-                analysisResultDetailTemplateMessage=template_message,
+                # analysisResultDetailTemplateMessage=template_message,
             )
         )
 
@@ -621,7 +621,6 @@ def dict_to_place(raw: dict) -> Place:
             for r in top_reviews_raw if isinstance(r, dict)
         ],
         score=raw.get("score"),
-        # 임시 추가
         analysisBasis=raw.get("analysisBasis"),
         aiMessage=raw.get("aiMessage"),
     )
