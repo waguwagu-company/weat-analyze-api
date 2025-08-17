@@ -3,6 +3,8 @@ from typing import List, Tuple, Any, Optional, Dict, Union
 from collections import defaultdict
 
 from app.models.ai_message_template_model import AIMessageTemplate
+from app.models.google_geocode_model import Coordinate
+from app.services.geocode_service import geocode_to_coordinate
 from app.test.dto.ai_analysis_request_dto import AIAnalysisRequest, MemberSetting
 from app.services.place_service import fetch_nearby_place_infos, fetch_place_images
 from app.services.pipeline_service import PipelineJobExecutionManager, PipelineExecutionManager
@@ -174,8 +176,24 @@ def analyze_request_preprocessing(request: AIAnalysisRequest) -> PreprocessResul
     members: List[MemberSetting] = request.memberSettingList
     group_id: str = request.groupId
 
+    for m in members:
+        # X,Y 중 둘 중 하나만 None 인 경우 실패처리
+        if (m.xPosition is None) ^ (m.yPosition is None):
+            raise ValueError(f"memberId={m.memberId}: xPosition/yPosition 중 하나의 값만 None입니다. 둘 다 제공하거나 둘 다 생략해야 합니다.")
+
+        if (m.xPosition is None and m.yPosition is None) and (m.roadnameAddress or "").strip():
+            try:
+                coord: Coordinate = geocode_to_coordinate(m.roadnameAddress.strip())
+                m.xPosition = float(coord.x)
+                m.yPosition = float(coord.y)
+                print(f"[Geocode] memberId={m.memberId} -> x={m.xPosition}, y={m.yPosition}")
+            except Exception as e:
+                print(f"[Geocode 실패] memberId={m.memberId}, address='{m.roadnameAddress}': {e}")
+                raise
+
     # 위치 정보 취합
     base_x, base_y, is_group = calculate_base_position(members)
+    print(f"base_x => {base_x}, base_y => {base_y}")
 
     # 카테고리 설정 취합
     tag_counter: dict[str, CategoryVote] = defaultdict(lambda: CategoryVote())

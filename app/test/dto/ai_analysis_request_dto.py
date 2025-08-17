@@ -10,8 +10,9 @@ class CategorySetting(BaseModel):
 
 class MemberSetting(BaseModel):
     memberId: int
-    xPosition: float
-    yPosition: float
+    xPosition: Optional[float] = None
+    yPosition: Optional[float] = None
+    roadnameAddress: Optional[str] = None
     categoryList: Annotated[List[CategorySetting], Field(default_factory=list)]
     inputText: Optional[str]
 
