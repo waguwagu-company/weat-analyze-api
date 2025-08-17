@@ -54,6 +54,7 @@ async def fetch_nearby_place_infos(
                     "address": getattr(place, "formattedAddress", None),
                     "ratingCount": getattr(place, "userRatingCount", None),
                     "priceLevel": getattr(place, "priceLevel", None),
+                    "placeUri": getattr(place, "googleMapsUri", None),
                     "reviews": [],
                     "photos": []  # 사진 미포함 정책 유지
                 }
@@ -80,6 +81,7 @@ async def fetch_nearby_place_infos(
             nearby_result = await call_search_nearby_places_api(
                 latitude=x, longitude=y, radius=radius, max_results=needed,
             )
+
             print(f"단순 위치기반 장소검색 API 호출({needed}개 보완)")
             for place in getattr(nearby_result, "places", []) or []:
                 if len(places_data) >= limit:
@@ -97,6 +99,7 @@ async def fetch_nearby_place_infos(
                     "address": getattr(place, "formattedAddress", None),
                     "ratingCount": getattr(place, "userRatingCount", None),
                     "priceLevel": getattr(place, "priceLevel", None),
+                    "placeUri": getattr(place, "googleMapsUri", None),
                     "reviews": [],
                     "photos": []
                 }
@@ -175,7 +178,8 @@ async def call_search_nearby_places_api (
             "places.userRatingCount",
             "places.priceLevel",
             "places.reviews",
-            "places.formattedAddress"
+            "places.formattedAddress",
+            "places.googleMapsUri"
         ]),
         "Accept-Language": "ko"
     }
@@ -238,6 +242,7 @@ async def call_search_nearby_places_with_text_api(
             "places.priceLevel",
             "places.reviews",
             "places.formattedAddress",
+            "places.googleMapsUri"
         ]),
         "Accept-Language": "ko"
     }

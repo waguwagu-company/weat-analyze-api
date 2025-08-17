@@ -38,6 +38,7 @@ class Place(BaseModel):
     userRatingCount: Optional[int] = None
     displayName: Optional[DisplayName] = None
     reviews: Optional[List[Review]] = None
+    googleMapsUri: Optional[str] = None
 
 
 class PlacesResponse(BaseModel):
