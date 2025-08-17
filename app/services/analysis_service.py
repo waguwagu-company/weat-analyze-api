@@ -430,7 +430,7 @@ def build_reco_prompt(
     prompt = f"""
 당신은 음식점 추천 도우미입니다. 아래 정보를 바탕으로 
 사용자의 중간 지점 인근에서 식당 1곳, 선호도가 높은 카테고리에 맞는 식당 1곳 총 2곳의 신당을 선택하세요.
-그리고 각 식당의 점수를 6~10점사이로 평가하고 간단한 추천 멘트를 논리적이면서도 재치있게 작성해주세요.
+그리고 각 식당의 점수를 6~10점 사이로 평가하고 간단한 추천 멘트를 논리적이면서도 재치있게 작성해주세요.
 
 [중간지점]
 lat: {base_y}, lon: {base_x}
@@ -524,9 +524,9 @@ def convert_to_response_format(
     for p in top_places:
         basis_list: List[AnalysisBasis] = []
         
-        # 식당 평균 점수 -> 5점 만점 정수로 변환
+        # 식당 평균 분석 점수 -> 백분율 단위로 변환
         score_10 = getattr(p, "score", 8.0)
-        analysis_score = int(round(score_10 / 2))
+        analysis_score = int(score_10 * 10)
         
         # basisType 구분 (없으면 REVIEW로 간주)
         basis_type = getattr(p, "analysisBasis", AnalysisBasisType.REVIEW)
