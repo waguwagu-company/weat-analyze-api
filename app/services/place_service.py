@@ -74,6 +74,9 @@ async def fetch_nearby_place_infos(
 
         print(f"카테고리 태그 텍스트기반 장소검색 수 => {len(places_data)}개")
 
+        """
+        # TODO: 테스트를 위해 임시 비활성화
+        
         # 2. 텍스트 기반 검색 결과가 부족한 경우 단순히 위치 기반 조회로 보완
         if len(places_data) < limit:
 
@@ -115,8 +118,7 @@ async def fetch_nearby_place_infos(
                 ]
 
                 places_data.append(place_info)
-
-
+            """
         print(f"총 장소 개수 => {len(places_data)}")
         return places_data
 
